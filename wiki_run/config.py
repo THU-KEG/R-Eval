@@ -5,5 +5,5 @@
  For full license text, see the LICENSE file in the repo root or https://www.apache.org/licenses/LICENSE-2.0
 """
 
-available_agent_names = ["Zeroshot_HotPotQA_run_Agent","ZeroshotThink_HotPotQA_run_Agent","React_HotPotQA_run_Agent","Planner_HotPotQA_run_Agent","PlannerReact_HotPotQA_run_Agent"]
+available_agent_names = ["Zeroshot_wiki_run_Agent","ZeroshotThink_wiki_run_Agent","React_wiki_run_Agent","Planner_wiki_run_Agent","PlannerReact_wiki_run_Agent"]
 OPENAI_API_KEY = ""

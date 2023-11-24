@@ -17,11 +17,11 @@ from langchain.agents.react.base import DocstoreExplorer
 from langchain.prompts import PromptTemplate
 from collections import Counter
 
-from hotpotqa_run.pre_prompt import (react_agent_prompt, zeroshot_agent_prompt, 
+from wiki_run.pre_prompt import (react_agent_prompt, zeroshot_agent_prompt, 
                          plan_prompt, planner_agent_prompt, plannerreact_agent_prompt)
-from hotpotqa_run.fewshots import REACT_EXAMPLE, PLANNER_EXAMPLE, PLAN_EXAMPLE, PLANNERREACT_EXAMPLE
-
-from web_run.llms import token_enc
+from wiki_run.fewshots import REACT_EXAMPLE, PLANNER_EXAMPLE, PLAN_EXAMPLE, PLANNERREACT_EXAMPLE
+import tiktoken
+token_enc = tiktoken.get_encoding("cl100k_base")
 
 def parse_action(string):
     pattern = r'^(\w+)\[(.+)\]$'
@@ -119,7 +119,7 @@ class BaseAgent:
         self.examples = ""
         self.context_len = context_len
         self.run_error = False
-        self.name = "Base_HotPotQA_run_Agent"
+        self.name = "Base_wiki_run_Agent"
 
         self.docstore = DocstoreExplorer(docstore) # Search, Lookup
         self.llm = llm
@@ -238,7 +238,7 @@ class ReactAgent(BaseAgent):
 
         self.examples = REACT_EXAMPLE
         self.agent_prompt = react_agent_prompt
-        self.name = "React_HotPotQA_run_Agent"
+        self.name = "React_wiki_run_Agent"
     
     def forward(self):
         self._think()
@@ -262,7 +262,7 @@ class ZeroshotAgent(BaseAgent):
 
         self.examples = ""
         self.agent_prompt = zeroshot_agent_prompt
-        self.name = "Zeroshot_HotPotQA_run_Agent"
+        self.name = "Zeroshot_wiki_run_Agent"
     
     def forward(self):
         action_type, argument = self._action()
@@ -284,7 +284,7 @@ class ZeroshotThinkAgent(BaseAgent):
 
         self.examples = ""
         self.agent_prompt = zeroshot_agent_prompt
-        self.name = "ZeroshotThink_HotPotQA_run_Agent"
+        self.name = "ZeroshotThink_wiki_run_Agent"
     
     def forward(self):
         self._think()
@@ -309,7 +309,7 @@ class PlannerAgent(BaseAgent):
         self.plan_example = PLAN_EXAMPLE
         self.agent_prompt = planner_agent_prompt
         self.plan_prompt  = plan_prompt
-        self.name = "Planner_HotPotQA_run_Agent"
+        self.name = "Planner_wiki_run_Agent"
         self._plan()
         
     def _plan(self):
@@ -347,7 +347,7 @@ class PlannerReactAgent(PlannerAgent):
         self.plan_example = PLAN_EXAMPLE
         self.agent_prompt = plannerreact_agent_prompt
         self.plan_prompt  = plan_prompt
-        self.name = "PlannerReact_HotPotQA_run_Agent"
+        self.name = "PlannerReact_wiki_run_Agent"
         self._plan()
     
     def forward(self):
@@ -357,13 +357,13 @@ class PlannerReactAgent(PlannerAgent):
 
 
 def get_agent(agent_name):
-    if agent_name in ["Zeroshot_HotPotQA_run_Agent"]:
+    if agent_name in ["Zeroshot_wiki_run_Agent"]:
         return ZeroshotAgent
-    if agent_name in ["ZeroshotThink_HotPotQA_run_Agent"]:
+    if agent_name in ["ZeroshotThink_wiki_run_Agent"]:
         return ZeroshotThinkAgent
-    if agent_name in ["React_HotPotQA_run_Agent"]:
+    if agent_name in ["React_wiki_run_Agent"]:
         return ReactAgent
-    if agent_name in ["Planner_HotPotQA_run_Agent"]:
+    if agent_name in ["Planner_wiki_run_Agent"]:
         return PlannerAgent
-    if agent_name in ["PlannerReact_HotPotQA_run_Agent"]:
+    if agent_name in ["PlannerReact_wiki_run_Agent"]:
         return PlannerReactAgent

@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 import concurrent
 import joblib
-from hotpotqa_run.utils import summarize_trial_detailed, log_trial
-import hotpotqa_run.utils as utils
-from hotpotqa_run.agent_arch import get_agent
-from hotpotqa_run.llms import get_llm_backend
-from hotpotqa_run.config import available_agent_names
+from wiki_run.utils import summarize_trial_detailed, log_trial
+import wiki_run.utils as utils
+from wiki_run.agent_arch import get_agent
+from wiki_run.llms import get_llm_backend
+from wiki_run.config import available_agent_names
 
 
 parser = argparse.ArgumentParser(description='Parsing the input of agents, llms and llm context length.')
@@ -26,8 +26,8 @@ def process_agent_run_step(agent):
     agent.run()
 
 def run_one_complex_level(level="easy"):
-    hotpot = joblib.load(f'hotpotqa_run/data/{level}.joblib').reset_index(drop = True)
-    agent_save_file = f"execution_data/hotpotqa/{level}_{agent_name}_{llm_name}.jsonl"
+    hotpot = joblib.load(f'data/raw/hotpotqa/{level}.joblib').reset_index(drop = True)
+    agent_save_file = f"data/result/hotpotqa/{level}_{agent_name}_{llm_name}.jsonl"
     task_instructions = [(row['question'], row['answer']) for _, row in hotpot.iterrows()]
     if os.path.exists(agent_save_file):
         sessions = utils.get_all_agent_sessions(agent_save_file)

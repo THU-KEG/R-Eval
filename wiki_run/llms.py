@@ -23,7 +23,7 @@ from langchain.prompts.chat import (
     AIMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-from web_run.config import OPENAI_API_KEY
+from wiki_run.config import OPENAI_API_KEY
 
 OPENAI_CHAT_MODELS = ["gpt-3.5-turbo","gpt-3.5-turbo-16k-0613","gpt-3.5-turbo-16k","gpt-4-0613","gpt-4-32k-0613"]
 OPENAI_LLM_MODELS = ["text-davinci-003","text-ada-001"]
