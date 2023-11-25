@@ -356,7 +356,7 @@ class PlannerReactAgent(PlannerAgent):
         return action_type, argument
 
 
-def get_wiki_agent(agent_name):
+def get_aminer_agent(agent_name):
     if agent_name in ["Zeroshot_wiki_run_Agent"]:
         return ZeroshotAgent
     if agent_name in ["ZeroshotThink_wiki_run_Agent"]:

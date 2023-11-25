@@ -6,138 +6,26 @@ from transformers import AutoTokenizer, LlamaTokenizer, LlamaForCausalLM, AutoMo
 from tqdm import tqdm
 import numpy as np
 import random
-from wiki_run.agent_arch import get_agent
+from wiki_run.agent_arch import get_wiki_agent
+from aminer_run.agent_arch import get_aminer_agent
 import argparse
 # from llama_flash_attn_monkey_patch import replace_llama_attn_with_flash_attn
-# from generate import Generator
-def str2bool(v):
-    """Util function for user friendly boolean flag args"""
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
-        return False
-    else:
-        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model', type=str, default=None, choices=["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k"])
-    parser.add_argument('--e', action='store_true', help="Evaluate on LongBench-E")
-    
-    # watermark args
-    parser.add_argument(
-        "--mode",
-        type=str,
-        default="old",
-        choices=["no", "old", "new", "v2", "gpt"],
-        help="Which version of the watermark to generate",
-    )
-    parser.add_argument(
-        '--initial_seed',
-        type=int,
-        default=1234,
-        help=("The initial seed to use in the blacklist randomization process.", 
-        "Is unused if the process is markov generally. Can be None."),
-        )
-
-    parser.add_argument(
-        "--dynamic_seed",
-        type=str,
-        default="markov_1",
-        choices=[None, "initial", "markov_1"],
-        help="The seeding procedure to use when sampling the blacklist at each step.",
-        )
-
-    parser.add_argument(
-        "--gamma",
-        type=float,
-        default=0.5)
-
-    parser.add_argument(
-        "--delta",
-        type=float,
-        default=5.0)
-
-    parser.add_argument(
-        "--bl_type",
-        type=str,
-        default="soft",
-        choices=["soft", "hard"],
-        help="The type of blacklisting being performed.",
-        )
-    parser.add_argument(
-        "--num_beams",
-        type=int,
-        default=1,
-        help="The number of beams to use where '1' is no beam search.",
-        )
-    parser.add_argument(
-        "--sampling_temp",
-        type=float,
-        default=0.7,
-        help="The temperature to use when generating using multinom sampling",
-        )
-    parser.add_argument( # for gpt watermark
-        "--wm_key", 
-        type=int, 
-        default=0)
-
-    parser.add_argument(
-        "--threshold",
-        type=float,
-        default=6.0)
-
-    parser.add_argument(
-        "--test_min_tokens",
-        type=int, 
-        default=2)
-    
-    parser.add_argument(
-        "--start_point",
-        type=int,
-        default=0,
-    )
-    
-    
-
-    parser.add_argument( # for v2 watermark
-        "--seeding_scheme",
-        type=str,
-        default="simple_1",
-        help="Seeding scheme to use to generate the greenlists at each generation and verification step.",
-    )
-
-    parser.add_argument( # for v2 watermark
-        "--normalizers",
-        type=str,
-        default="",
-        help="Single or comma separated list of the preprocessors/normalizer names to use when performing watermark detection.",
-    )
-
-    parser.add_argument( # for v2 watermark
-        "--ignore_repeated_bigrams",
-        type=str2bool,
-        default=False,
-        help="Whether to use the detection method that only counts each unqiue bigram once as either a green or red hit.",
-    )
-
-    parser.add_argument( # for v2 watermark
-        "--select_green_tokens",
-        type=str2bool,
-        default=True,
-        help="How to treat the permuation when selecting the greenlist tokens at each step. Legacy is (False) to pick the complement/reds first.",
-    )
-    
-    parser.add_argument( # for dataset
+    # agent args
+    parser.add_argument('--model', type=str, default="llama2-7b-chat-4k", choices=["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k", "gpt-3.5-turbo-1106", "gpt-4-1106-preview"])
+    parser.add_argument('--agent_name', type=str, default="React_wiki_run_Agent", choices=["Zeroshot_wiki_run_Agent", "React_wiki_run_Agent", "Planner_wiki_run_Agent", "PlannerReact_wiki_run_Agent"])
+    # environment args
+    parser.add_argument('--environment', type=str, default="wiki", choices=["wiki", "aminer"])
+    parser.add_argument( # for specific dataset
         "--dataset",
         type=str,
-        default="all",
+        default="hotpotqa",
         choices=["konwledge_memorization","konwledge_understanding","longform_qa",
                         "finance_qa","hotpotqa","lcc", "multi_news", "qmsum","alpacafarm", "all"],
     )
-
+    parser.add_argument('--start_point', type=int, default=0)
     return parser.parse_args(args)
 
 # This is the customized building prompt for chat models
@@ -167,19 +55,26 @@ def post_process(response, model_name):
 
 def get_pred(args, model, tokenizer, data, max_length, max_gen, prompt_format, dataset, device, model_name, debug: bool = False):
     preds = []
-    agent_cls = get_agent(args.agent_name)
+    if args.environment == "wiki":
+        agent_cls = get_wiki_agent(args.agent_name)
+    elif args.environment == "aminer":
+        agent_cls = get_aminer_agent(args.agent_name)
     
     torch.cuda.empty_cache()
     for json_obj in tqdm(data[args.start_point:]):
         prompt = prompt_format.format(**json_obj)
-        # truncate to fit max_length (we suggest truncate in the middle, since the left and right side may contain crucial instructions)
-        tokenized_prompt = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids[0]
-        if len(tokenized_prompt) > max_length:
-            half = int(max_length/2)
-            prompt = tokenizer.decode(tokenized_prompt[:half], skip_special_tokens=True)+tokenizer.decode(tokenized_prompt[-half:], skip_special_tokens=True)
-        if dataset not in ["trec", "triviaqa", "samsum", "lsht", "lcc", "repobench-p"]: # chat models are better off without build prompts on these tasks
-            prompt = build_chat(tokenizer, prompt, model_name)
-        ques = tokenizer(prompt, truncation=False, return_tensors="pt").to(device)
+        if tokenizer:
+            # truncate to fit max_length (we suggest truncate in the middle, since the left and right side may contain crucial instructions)
+            tokenized_prompt = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids[0]
+            if len(tokenized_prompt) > max_length:
+                half = int(max_length/2)
+                prompt = tokenizer.decode(tokenized_prompt[:half], skip_special_tokens=True)+tokenizer.decode(tokenized_prompt[-half:], skip_special_tokens=True)
+            if dataset not in ["trec", "triviaqa", "samsum", "lsht", "lcc", "repobench-p"]: # chat models are better off without build prompts on these tasks
+                prompt = build_chat(tokenizer, prompt, model_name)
+            ques = tokenizer(prompt, truncation=False, return_tensors="pt").to(device)
+        else:
+            # for gpt-3.5 and gpt-4, we use the prompt without tokenization
+            ques = prompt
         ans = json_obj["outputs"][0]
         agent = agent_cls(ques, ans, model, max_length) 
 
@@ -217,6 +112,9 @@ def load_model_and_tokenizer(path, model_name, device,  load_token_only=False):
         if not load_token_only:
             model = LlamaForCausalLM.from_pretrained(path, output_scores=True, return_dict_in_generate=True, 
                                                  torch_dtype=torch.bfloat16).to(device) 
+    elif "gpt-3.5" or "gpt-4" in model_name:
+        return None, None
+    
     if load_token_only:
         return tokenizer
     else:
@@ -235,12 +133,10 @@ if __name__ == '__main__':
     # define your model
     model, tokenizer = load_model_and_tokenizer(model2path[model_name], model_name, device)
     max_length = model2maxlen[model_name]
-    if args.e:
-        datasets = ["qasper", "multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "multi_news", \
-            "trec", "triviaqa", "samsum", "passage_count", "passage_retrieval_en", "lcc", "repobench-p"]
+    if args.environment == "wiki":
+        datasets = ["multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "passage_retrieval_en"]
     else:
-        datasets = ["konwledge_memorization","konwledge_understanding","longform_qa",
-                        "finance_qa","hotpotqa","lcc", "multi_news", "qmsum","alpacafarm"]
+        datasets = ["longform_qa", "finance_qa","hotpotqa","lcc", "multi_news", "qmsum","alpacafarm"]
     # we design specific prompt format and max generation length for each task, feel free to modify them to optimize model output
     dataset2prompt = json.load(open("config/dataset2prompt.json", "r"))
     dataset2maxlen = json.load(open("config/dataset2maxlen.json", "r"))
@@ -273,7 +169,7 @@ if __name__ == '__main__':
         dataset = args.dataset
         print(f"{dataset} has began.........")
         data = []
-        with open("data/WaterBench/{}_{}.jsonl".format(dataset2level[dataset], dataset), "r", encoding="utf-8") as f:
+        with open("data/raw/{}_{}.jsonl".format(dataset2level[dataset], dataset), "r", encoding="utf-8") as f:
             for line in f:
                 data.append(json.loads(line))       
         out_path = os.path.join(save_dir, f"{dataset}.jsonl")
