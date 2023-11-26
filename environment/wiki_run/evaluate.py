@@ -10,7 +10,7 @@ import os
 import re 
 from collections import defaultdict
 import pandas as pd
-import wiki_run.utils as utils
+import environment.wiki_run.utils as utils
 
 def eval_success(result_file) -> list:
     df = pd.read_csv(result_file)

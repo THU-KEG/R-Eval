@@ -12,24 +12,24 @@ import random
 import tiktoken
 token_enc = tiktoken.get_encoding("cl100k_base")
 import openai
-from langchain import PromptTemplate, OpenAI, LLMChain
+from langchain import PromptTemplate, OpenAI
 from transformers import AutoTokenizer, AutoModelForCausalLM
 from langchain.chat_models import ChatOpenAI
 from langchain.chains import LLMChain
-from langchain import PromptTemplate
 from langchain.prompts.chat import (
     ChatPromptTemplate,
     SystemMessagePromptTemplate,
     AIMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-from wiki_run.config import OPENAI_API_KEY
+from environment.wiki_run.config import OPENAI_API_KEY
 
-OPENAI_CHAT_MODELS = ["gpt-3.5-turbo","gpt-3.5-turbo-16k-0613","gpt-3.5-turbo-16k","gpt-4-0613","gpt-4-32k-0613"]
+OPENAI_CHAT_MODELS = ["gpt-3.5-turbo","gpt-3.5-turbo-16k-0613","gpt-3.5-turbo-16k","gpt-4-0613","gpt-4-32k-0613", "gpt-3.5-turbo-1106", "gpt-4-1106-preview"]
 OPENAI_LLM_MODELS = ["text-davinci-003","text-ada-001"]
 FASTCHAT_MODELS = ["vicuna-7b"]
+LLAMA_MODELS = ["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k"]
 
-    
+
 class langchain_openai_chatllm:
     def __init__(self, llm_name):
         openai.api_key = OPENAI_API_KEY

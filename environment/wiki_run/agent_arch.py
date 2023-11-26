@@ -17,9 +17,9 @@ from langchain.agents.react.base import DocstoreExplorer
 from langchain.prompts import PromptTemplate
 from collections import Counter
 
-from wiki_run.pre_prompt import (react_agent_prompt, zeroshot_agent_prompt, 
+from environment.wiki_run.pre_prompt import (react_agent_prompt, zeroshot_agent_prompt, 
                          plan_prompt, planner_agent_prompt, plannerreact_agent_prompt)
-from wiki_run.fewshots import REACT_EXAMPLE, PLANNER_EXAMPLE, PLAN_EXAMPLE, PLANNERREACT_EXAMPLE
+from environment.wiki_run.fewshots import REACT_EXAMPLE, PLANNER_EXAMPLE, PLAN_EXAMPLE, PLANNERREACT_EXAMPLE
 import tiktoken
 token_enc = tiktoken.get_encoding("cl100k_base")
 
@@ -356,7 +356,7 @@ class PlannerReactAgent(PlannerAgent):
         return action_type, argument
 
 
-def get_aminer_agent(agent_name):
+def get_wiki_agent(agent_name, dataset_name):
     if agent_name in ["Zeroshot_wiki_run_Agent"]:
         return ZeroshotAgent
     if agent_name in ["ZeroshotThink_wiki_run_Agent"]:

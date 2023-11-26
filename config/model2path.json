@@ -7,5 +7,7 @@
     "chatglm2-6b-32k": "/data2/tsq/WaterBench/data/models/chatglm2-6b-32k",
     "vicuna-v1.5-7b-16k": "lmsys/vicuna-7b-v1.5-16k",
     "tulu-7b": "/data2/cookie_huggingface_models/tulu-7b-full",
-    "vicuna-13b": "/data2/cookie_huggingface_models/vicuna-13b"
+    "vicuna-13b": "/data2/cookie_huggingface_models/vicuna-13b",
+    "gpt-3.5-turbo-1106": "",
+    "gpt-4-1106-preview": ""
 }

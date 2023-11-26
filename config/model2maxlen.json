@@ -7,5 +7,7 @@
     "chatglm2-6b-32k": 31500,
     "vicuna-v1.5-7b-16k": 15500,
     "tulu-7b": 2048,
-    "vicuna-13b": 2048
+    "vicuna-13b": 2048,
+    "gpt-3.5-turbo-1106": 16000,
+    "gpt-4-1106-preview": 128000
 }

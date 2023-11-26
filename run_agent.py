@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 import concurrent
 import joblib
-from wiki_run.utils import summarize_trial_detailed, log_trial
-import wiki_run.utils as utils
-from wiki_run.agent_arch import get_agent
-from wiki_run.llms import get_llm_backend
-from wiki_run.config import available_agent_names
+from environment.wiki_run.utils import summarize_trial_detailed, log_trial
+import environment.wiki_run.utils as utils
+from environment.wiki_run.agent_arch import get_agent
+from environment.wiki_run.llms import get_llm_backend
+from environment.wiki_run.config import available_agent_names
 
 
 parser = argparse.ArgumentParser(description='Parsing the input of agents, llms and llm context length.')
