@@ -1,15 +1,48 @@
 # KoLA2
 KoLA2: Knowledge-oriented Language Agents Assessment
 
+# Requirements
+
+For client:
+```
+pandas
+gym
+numpy
+tiktoken
+langchain
+wikipedia
+```
+
+For gpu server:
+```
+transformers
+torch
+```
 
 # How to run
 You can use `pred.py` to run the agent tests. The usage is as follows:
 
 ```
-nohup python pred.py --agent_name PlannerReact_wiki_run_Agent --llm_name gpt-3.5-turbo --max_context_len 4000 > PlannerReact_gpt-3.5-turbo_hotpot.nohup &
+nohup python pred.py --agent_name React_wiki_run_Agent --model llama2-7b-chat-4k --environment wiki --dataset hotpotqa > data/logs/React_llama2-7b-chat_hotpot.log &
 ```
 
 or just run the `shells/test_hotpotqa.sh` script.
+
+# For GPU Server
+Apart from those OpanAI models which can be called via API, we also need some open-source models to run like `llama2` and `tulu`. 
+
+On the gpu server，we use FastAPI to run the models. First enter the `environment/server` folder, then run the command as follows (**开之前需要修改infer.py的model_name**):
+
+```
+CUDA_VISIBLE_DEVICES=1 nohup uvicorn infer:app --host '0.0.0.0' --port 9626  > llama2.log &
+```
+
+```
+CUDA_VISIBLE_DEVICES=2 nohup uvicorn infer:app --host '0.0.0.0' --port 9627  > tulu.log &
+```
+然后可以修改client端的`environment/wiki_run/config.py`中的`MODEL2PORT`把端口和模型名字对应上
+
+
 
 # For Wikipedia Environment
 We directly use the LangChain's DocstoreExplorer which can search the Wikipedia articles by the title.
