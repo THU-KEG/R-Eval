@@ -7,7 +7,8 @@ import numpy as np
 from pydantic import BaseModel
 from fastapi import FastAPI
 # ["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k"]
-model_name = "llama2-7b-chat-4k"
+# model_name = "llama2-7b-chat-4k"
+model_names = ["llama2-7b-chat-4k", "tulu-7b"]
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -50,11 +51,17 @@ seed_everything(42)
 # args = parse_args()
 model2path = json.load(open("../../config/model2path.json", "r"))
 model2maxlen = json.load(open("../../config/model2maxlen.json", "r"))
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # define your model
-max_length = model2maxlen[model_name]
-model, tokenizer = load_model_and_tokenizer(model2path[model_name], model_name, device)
+models = {}
+tokenizers = {}
+for i, model_name in  enumerate(model_names):
+    max_length = model2maxlen[model_name]
+    device = torch.device(f"cuda:{i}" if torch.cuda.is_available() else "cpu")
+    model, tokenizer = load_model_and_tokenizer(model2path[model_name], model_name, device)
+    models[model_name] = model
+    tokenizers[model_name] = tokenizer
 app = FastAPI()
 
 
@@ -84,9 +91,11 @@ def post_process(response, model_name):
         response = response.split("<eoa>")[0]
     return response
 
-def infer(prompt, max_gen, temperature):
+def infer(prompt, max_gen, temperature, model_name):
     # truncate to fit max_length (we suggest truncate in the middle, since the left and right side may contain crucial instructions)
     torch.cuda.empty_cache()
+    tokenizer = tokenizers[model_name]
+    model = models[model_name]
     tokenized_prompt = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids[0]
     if len(tokenized_prompt) > max_length:
         half = int(max_length/2)
@@ -114,12 +123,12 @@ class Item(BaseModel):
     temperature: float = 1.0
 
 
-@app.post(f'/{model_name}_completion')
-def get_completion(request_data: Item):
+@app.post('/completion/{model_name}')
+def get_completion(model_name:str, request_data: Item):
     input_text = request_data.input_text
     max_new_tokens = request_data.max_new_tokens
     temperature = request_data.temperature
-    completions_text = infer(input_text, max_new_tokens, temperature)
+    completions_text = infer(input_text, max_new_tokens, temperature, model_name)
     res = {
         'completions_text': completions_text,
     }

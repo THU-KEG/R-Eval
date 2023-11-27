@@ -31,18 +31,13 @@ or just run the `shells/test_hotpotqa.sh` script.
 # For GPU Server
 Apart from those OpanAI models which can be called via API, we also need some open-source models to run like `llama2` and `tulu`. 
 
-On the gpu server，we use FastAPI to run the models. First enter the `environment/server` folder, then run the command as follows (**开之前需要修改infer.py的model_name**):
+On the gpu server，we use FastAPI to run the models. First enter the `environment/server` folder, then run the command as follows (**Please set the model_names in infer.py first**):
 
 ```
-CUDA_VISIBLE_DEVICES=1 nohup uvicorn infer:app --host '0.0.0.0' --port 9626  > llama2.log &
+CUDA_VISIBLE_DEVICES=2,3 nohup uvicorn infer:app --host '0.0.0.0' --port 9627  > models.log &
 ```
 
-```
-CUDA_VISIBLE_DEVICES=2 nohup uvicorn infer:app --host '0.0.0.0' --port 9627  > tulu.log &
-```
-然后可以修改client端的`environment/wiki_run/config.py`中的`MODEL2PORT`把端口和模型名字对应上
-
-
+Note that the number of model_names should be equal to the number of GPUs. For example, if you have 2 models in the model_names, then you should have 2 GPUs.
 
 # For Wikipedia Environment
 We directly use the LangChain's DocstoreExplorer which can search the Wikipedia articles by the title.

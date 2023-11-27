@@ -20,7 +20,7 @@ from langchain.prompts.chat import (
     AIMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-from environment.wiki_run.config import OPENAI_API_KEY, SERVER_HOST, MODEL2PORT
+from environment.wiki_run.config import OPENAI_API_KEY, SERVER_HOST, SERVER_PORT
 
 OPENAI_CHAT_MODELS = ["gpt-3.5-turbo","gpt-3.5-turbo-16k-0613","gpt-3.5-turbo-16k","gpt-4-0613","gpt-4-32k-0613", "gpt-3.5-turbo-1106", "gpt-4-1106-preview"]
 OPENAI_LLM_MODELS = ["text-davinci-003","text-ada-001"]
@@ -73,8 +73,7 @@ class langchain_fastchat_llm:
 class langchain_llama_llm:
     def __init__(self, llm_name):
         self.llm_name = llm_name
-        port = MODEL2PORT[llm_name]
-        self.url = f"http://{SERVER_HOST}:{port}/{llm_name}_completion"
+        self.url = f"http://{SERVER_HOST}:{SERVER_PORT}/completion/{llm_name}"
         
     def run(self, prompt, temperature=1, stop=['\n'], max_tokens=128):
         
@@ -85,7 +84,8 @@ class langchain_llama_llm:
             }
         result = requests.post(self.url, data=json.dumps(data))
         # return a string
-        return result['completions_text']
+        res = result.json()['completions_text']
+        return res
 
 def get_llm_backend(llm_name):
     if llm_name in OPENAI_CHAT_MODELS:

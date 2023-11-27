@@ -13,7 +13,7 @@ import argparse
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
     # agent args
-    parser.add_argument('--model', type=str, default="llama2-7b-chat-4k", choices=["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k", "gpt-3.5-turbo-1106", "gpt-4-1106-preview"])
+    parser.add_argument('--model', type=str, default="tulu-7b", choices=["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k", "gpt-3.5-turbo-1106", "gpt-4-1106-preview"])
     parser.add_argument('--agent_name', type=str, default="React_wiki_run_Agent", choices=["Zeroshot_wiki_run_Agent", "React_wiki_run_Agent", "Planner_wiki_run_Agent", "PlannerReact_wiki_run_Agent"])
     # environment args
     parser.add_argument('--environment', type=str, default="wiki", choices=["wiki", "aminer"])
@@ -30,14 +30,19 @@ def parse_args(args=None):
 
 def get_pred(args, data, max_context_length, dataset_name, llm_name, save_dir):
     preds = []
+    task_instructions = data[args.start_point:]
     if args.environment == "wiki":
         agent_cls = get_wiki_agent(args.agent_name, dataset_name)
     elif args.environment == "aminer":
         agent_cls = get_aminer_agent(args.agent_name, dataset_name)
     agent_save_file = os.path.join(save_dir, f"{dataset_name}_log.jsonl")
     if os.path.exists(agent_save_file):
-        os.remove(agent_save_file)
-    for json_obj in tqdm(data[args.start_point:]):
+        sessions = utils.get_all_agent_sessions(agent_save_file)
+        completed_tasks = utils.get_non_error_tasks(sessions)
+        print(f"{dataset_name}:{len(completed_tasks)}")
+        task_instructions = [task for task in task_instructions if task not in completed_tasks]
+        utils.delete_error(agent_save_file)
+    for json_obj in tqdm(task_instructions):
         # for gpt-3.5 and gpt-4, we use the prompt without tokenization
         ques = json_obj["input"]
         ans = json_obj["outputs"][0]
