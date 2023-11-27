@@ -56,12 +56,14 @@ model2maxlen = json.load(open("../../config/model2maxlen.json", "r"))
 # define your model
 models = {}
 tokenizers = {}
+model2device = {}
 for i, model_name in  enumerate(model_names):
     max_length = model2maxlen[model_name]
     device = torch.device(f"cuda:{i}" if torch.cuda.is_available() else "cpu")
     model, tokenizer = load_model_and_tokenizer(model2path[model_name], model_name, device)
     models[model_name] = model
     tokenizers[model_name] = tokenizer
+    model2device[model_name] = device
 app = FastAPI()
 
 
@@ -101,7 +103,7 @@ def infer(prompt, max_gen, temperature, model_name):
         half = int(max_length/2)
         prompt = tokenizer.decode(tokenized_prompt[:half], skip_special_tokens=True)+tokenizer.decode(tokenized_prompt[-half:], skip_special_tokens=True)
     prompt = build_chat(tokenizer, prompt, model_name)
-    _input = tokenizer(prompt, truncation=False, return_tensors="pt").to(device)
+    _input = tokenizer(prompt, truncation=False, return_tensors="pt").to(model2device[model_name])
     outputs = model.generate(
                 **_input,
                 max_new_tokens=max_gen,

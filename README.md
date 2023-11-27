@@ -23,7 +23,7 @@ torch
 You can use `pred.py` to run the agent tests. The usage is as follows:
 
 ```
-nohup python pred.py --agent_name React_wiki_run_Agent --model llama2-7b-chat-4k --environment wiki --dataset hotpotqa > data/logs/React_llama2-7b-chat_hotpot.log &
+nohup python3 pred.py --agent_name React_wiki_run_Agent --model llama2-7b-chat-4k --environment wiki --dataset hotpotqa > data/logs/React_llama2-7b-chat_hotpot.log &
 ```
 
 or just run the `shells/test_hotpotqa.sh` script.

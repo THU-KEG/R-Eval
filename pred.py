@@ -3,6 +3,7 @@ import json
 from tqdm import tqdm
 import numpy as np
 import random
+import concurrent
 import environment.wiki_run.utils as utils
 from environment.wiki_run.llms import get_llm_backend
 from environment.wiki_run.agent_arch import get_wiki_agent
@@ -28,9 +29,13 @@ def parse_args(args=None):
     return parser.parse_args(args)
 
 
+def process_agent_run_step(agent):
+    agent.run()
+
 def get_pred(args, data, max_context_length, dataset_name, llm_name, save_dir):
-    preds = []
-    task_instructions = data[args.start_point:]
+    # preds = []
+    task_data = data[args.start_point:]
+    task_instructions = [(json_obj["input"],json_obj["outputs"][0]) for json_obj in task_data]
     if args.environment == "wiki":
         agent_cls = get_wiki_agent(args.agent_name, dataset_name)
     elif args.environment == "aminer":
@@ -39,25 +44,30 @@ def get_pred(args, data, max_context_length, dataset_name, llm_name, save_dir):
     if os.path.exists(agent_save_file):
         sessions = utils.get_all_agent_sessions(agent_save_file)
         completed_tasks = utils.get_non_error_tasks(sessions)
-        print(f"{dataset_name}:{len(completed_tasks)}")
+        print(f"{dataset_name} finished:{len(completed_tasks)}")
         task_instructions = [task for task in task_instructions if task not in completed_tasks]
         utils.delete_error(agent_save_file)
-    for json_obj in tqdm(task_instructions):
-        # for gpt-3.5 and gpt-4, we use the prompt without tokenization
-        ques = json_obj["input"]
-        ans = json_obj["outputs"][0]
-        llm = get_llm_backend(llm_name).run
-        agent = agent_cls(ques, ans, llm, max_context_length) 
-        completions_text  = agent.run()
-        preds.append({"input":ques, "pred": completions_text, "answers": json_obj["outputs"], "all_classes": json_obj["all_classes"], "length":json_obj["length"]})
+    llm = get_llm_backend(llm_name).run
+    agents = [agent_cls(ques, ans, llm, max_context_length) for ques, ans in task_instructions]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        executor.map(process_agent_run_step, agents)
+    for agent in agents:
+        # agent.run()
         utils.log_agent(agent, agent_save_file)
-        
-    return preds
+    print(f'Finished Trial. Total: {len(agents)}')
 
 def seed_everything(seed):
     np.random.seed(seed)
     random.seed(seed)
 
+def run_dataset(dataset):
+    print(f"{dataset} has began.........")
+    data = []
+    with open("data/raw/{}_{}.jsonl".format(dataset2level[dataset], dataset), "r", encoding="utf-8") as f:
+        for line in f:
+            data.append(json.loads(line))       
+    get_pred(args, data, max_length, dataset, model_name, save_dir)
+                    
 
 if __name__ == '__main__':
     seed_everything(42)
@@ -80,37 +90,8 @@ if __name__ == '__main__':
     # predict on each dataset
     if args.dataset == "all":
         for dataset in datasets:
-            # load data
-            print(f"{dataset} has began.........")
-            data = []
-            with open("data/raw/{}_{}.jsonl".format(dataset2level[dataset], dataset), "r", encoding="utf-8") as f:
-                for line in f:
-                    data.append(json.loads(line))       
-            out_path = os.path.join(save_dir, f"{dataset}.jsonl")
-            preds = get_pred(args, data, max_length, dataset, model_name, save_dir)
-            with open(out_path, "w", encoding="utf-8") as f:
-                for pred in preds:
-                    json.dump(pred, f, ensure_ascii=False)
-                    f.write('\n')
-                    
+            run_dataset(dataset)
     else:
         dataset = args.dataset
-        print(f"{dataset} has began.........")
-        data = []
-        with open("data/raw/{}_{}.jsonl".format(dataset2level[dataset], dataset), "r", encoding="utf-8") as f:
-            for line in f:
-                data.append(json.loads(line))       
-        out_path = os.path.join(save_dir, f"{dataset}.jsonl")
-        preds = get_pred(args, data, max_length, dataset, model_name, save_dir)
-        if os.path.exists(out_path):
-            with open(out_path, "a", encoding="utf-8") as f:
-                for pred in preds:
-                    json.dump(pred, f, ensure_ascii=False)
-                    f.write('\n')
-        else:
-            with open(out_path, "w", encoding="utf-8") as f:
-                for pred in preds:
-                    json.dump(pred, f, ensure_ascii=False)
-                    f.write('\n')
-                    
-                    
+        run_dataset(dataset)
+        
