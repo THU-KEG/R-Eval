@@ -3,6 +3,7 @@ import json
 from tqdm import tqdm
 import numpy as np
 import random
+import joblib
 import concurrent
 import environment.wiki_run.utils as utils
 from environment.wiki_run.llms import get_llm_backend
@@ -14,7 +15,7 @@ import argparse
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
     # agent args
-    parser.add_argument('--model', type=str, default="tulu-7b", choices=["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k", "gpt-3.5-turbo-1106", "gpt-4-1106-preview"])
+    parser.add_argument('--model', type=str, default="tulu-7b", choices=["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "llama2-13b", "vicuna-13b", "gpt-3.5-turbo-1106", "gpt-4-1106-preview", "codellama-13b-instruct", "toolllama-2-7b"])
     parser.add_argument('--agent_name', type=str, default="React_wiki_run_Agent", choices=["Zeroshot_wiki_run_Agent", "React_wiki_run_Agent", "Planner_wiki_run_Agent", "PlannerReact_wiki_run_Agent"])
     # environment args
     parser.add_argument('--environment', type=str, default="wiki", choices=["wiki", "aminer"])
@@ -25,7 +26,7 @@ def parse_args(args=None):
         choices=["konwledge_memorization","konwledge_understanding","longform_qa",
                         "finance_qa","hotpotqa","lcc", "multi_news", "qmsum","alpacafarm", "all"],
     )
-    parser.add_argument('--start_point', type=int, default=0)
+    parser.add_argument('--num_workers', type=int, default=1) # for multi-threading, suitable for api-based llms like gpt3.5
     return parser.parse_args(args)
 
 
@@ -33,9 +34,11 @@ def process_agent_run_step(agent):
     agent.run()
 
 def get_pred(args, data, max_context_length, dataset_name, llm_name, save_dir):
-    # preds = []
-    task_data = data[args.start_point:]
-    task_instructions = [(json_obj["input"],json_obj["outputs"][0]) for json_obj in task_data]
+    num_workers = args.num_workers
+    task_instructions = [(json_obj["input"],json_obj["outputs"][0]) for json_obj in data]
+    # TODO: remove this htotpotqa hard code
+    hotpot = joblib.load(f'data/raw/hotpotqa/medium.joblib').reset_index(drop = True)
+    task_instructions = [(row['question'], row['answer']) for _, row in hotpot.iterrows()]
     if args.environment == "wiki":
         agent_cls = get_wiki_agent(args.agent_name, dataset_name)
     elif args.environment == "aminer":
@@ -49,11 +52,15 @@ def get_pred(args, data, max_context_length, dataset_name, llm_name, save_dir):
         utils.delete_error(agent_save_file)
     llm = get_llm_backend(llm_name).run
     agents = [agent_cls(ques, ans, llm, max_context_length) for ques, ans in task_instructions]
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        executor.map(process_agent_run_step, agents)
-    for agent in agents:
-        # agent.run()
-        utils.log_agent(agent, agent_save_file)
+    if num_workers <= 1:
+        for agent in tqdm(agents, total=len(agents)):
+            agent.run()
+            utils.log_agent(agent, agent_save_file)
+    else:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_workers) as executor:
+            executor.map(process_agent_run_step, agents)
+        for agent in tqdm(agents, total=len(agents)):
+            utils.log_agent(agent, agent_save_file)
     print(f'Finished Trial. Total: {len(agents)}')
 
 def seed_everything(seed):

@@ -57,13 +57,15 @@ def summarize_trial_detailed(agents):
 def log_agent(agent, file_path):
     question = agent.question
     g_truth = agent.key
+    predict_answer = agent.answer
     correct = agent.is_correct()
     reward = agent.reward()[0]
     halted = agent.is_halted()
     error = agent.run_error
     prompt = agent._build_agent_prompt()
-    save_dict = {"question":question, "answer":g_truth, "correct":correct, "reward":reward, 
-                 "halted":halted, "error":error,"prompt":prompt}
+    save_dict = {"question":question, "answer":g_truth, "prediction": predict_answer,         
+                 "correct":correct, "reward":reward, 
+                "halted":halted, "error":error,"prompt":prompt}
     with open(file_path, 'a') as f:
         json.dump(save_dict, f)
         f.write("\n")

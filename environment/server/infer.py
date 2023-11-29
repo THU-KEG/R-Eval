@@ -8,7 +8,9 @@ from pydantic import BaseModel
 from fastapi import FastAPI
 # ["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k"]
 # model_name = "llama2-7b-chat-4k"
-model_names = ["llama2-7b-chat-4k", "tulu-7b"]
+# model_names = ["llama2-7b-chat-4k", "tulu-7b"]
+model_names = ["llama2-13b", "vicuna-13b"]
+# model_names = ["codellama-13b-instruct", "toolllama-2-7b"]
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -25,6 +27,10 @@ def seed_everything(seed):
 #     parser.add_argument('--model', type=str, default="tulu-7b", choices=["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k"])
     
 def load_model_and_tokenizer(path, model_name, device,  load_token_only=False):
+    print("-"*16)
+    print(f"Loading model {model_name} from {path}")
+    print(f"device {device} & load_token_only {load_token_only}")
+    print("-"*16)
     if "chatglm" in model_name or "internlm" in model_name or "xgen" in model_name:
         tokenizer = AutoTokenizer.from_pretrained(path, trust_remote_code=True)
         if not load_token_only:
@@ -32,7 +38,7 @@ def load_model_and_tokenizer(path, model_name, device,  load_token_only=False):
                                                   output_scores=True, return_dict_in_generate=True, 
                                                   torch_dtype=torch.bfloat16).to(device)
             model.eval()
-    elif "llama2" in model_name or "tulu" in model_name:
+    elif "llama" in model_name or "tulu" in model_name or "vicuna" in model_name:
         # replace_llama_attn_with_flash_attn()
         tokenizer = LlamaTokenizer.from_pretrained(path)
         if not load_token_only:
@@ -72,8 +78,8 @@ app = FastAPI()
 def build_chat(tokenizer, prompt, model_name):
     if "chatglm" in model_name:
         prompt = tokenizer.build_prompt(prompt)      
-    elif "llama2" in model_name:
-        prompt = f"[INST]{prompt}[/INST]"
+    # elif "llama2" in model_name:
+    #     prompt = f"[INST]{prompt}[/INST]"
     elif "xgen" in model_name:
         header = (
             "A chat between a curious human and an artificial intelligence assistant. "

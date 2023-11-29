@@ -25,7 +25,7 @@ from environment.wiki_run.config import OPENAI_API_KEY, SERVER_HOST, SERVER_PORT
 OPENAI_CHAT_MODELS = ["gpt-3.5-turbo","gpt-3.5-turbo-16k-0613","gpt-3.5-turbo-16k","gpt-4-0613","gpt-4-32k-0613", "gpt-3.5-turbo-1106", "gpt-4-1106-preview"]
 OPENAI_LLM_MODELS = ["text-davinci-003","text-ada-001"]
 FASTCHAT_MODELS = ["vicuna-7b"]
-LLAMA_MODELS = ["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k"]
+LLAMA_MODELS = ["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "llama2-13b", "vicuna-13b","codellama-13b-instruct", "toolllama-2-7b"]
 
 
 class langchain_openai_chatllm:
