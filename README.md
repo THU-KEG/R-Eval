@@ -23,7 +23,7 @@ torch
 You can use `pred.py` to run the agent tests. The usage is as follows:
 
 ```
-nohup python3 pred.py --agent_name React_wiki_run_Agent --model llama2-7b-chat-4k --environment wiki --dataset hotpotqa > data/logs/React_llama2-7b-chat_hotpot.log &
+python3 pred.py --agent_name React_wiki_run_Agent --model vicuna-13b --environment wiki --dataset hotpotqa --num_workers 1
 ```
 
 or just run the `shells/test_hotpotqa.sh` script.
@@ -34,7 +34,7 @@ Apart from those OpanAI models which can be called via API, we also need some op
 On the gpu server，we use FastAPI to run the models. First enter the `environment/server` folder, then run the command as follows (**Please set the model_names in infer.py first**):
 
 ```
-CUDA_VISIBLE_DEVICES=2,3 nohup uvicorn infer:app --host '0.0.0.0' --port 9627  > models.log &
+CUDA_VISIBLE_DEVICES=5,7 nohup uvicorn infer:app --host '0.0.0.0' --port 9627  > models.log &
 ```
 
 Note that the number of model_names should be equal to the number of GPUs. For example, if you have 2 models in the model_names, then you should have 2 GPUs.

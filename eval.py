@@ -8,7 +8,7 @@ model2maxlen = json.load(open("config/model2maxlen.json", "r"))
 for agent_name in agent_names:
     for model_name in model_names:
         max_length = model2maxlen[model_name]
-        save_dir = f"data/noans_result/{agent_name}_{model_name}_{max_length}/"
+        save_dir = f"data/result/{agent_name}_{model_name}_{max_length}/"
         agent_save_file = os.path.join(save_dir, f"{dataset_name}_log.jsonl")
         if os.path.exists(agent_save_file):
             sessions = utils.get_all_agent_sessions(agent_save_file)

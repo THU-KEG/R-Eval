@@ -63,9 +63,10 @@ def log_agent(agent, file_path):
     halted = agent.is_halted()
     error = agent.run_error
     prompt = agent._build_agent_prompt()
+    scratchpad = agent.scratchpad
     save_dict = {"question":question, "answer":g_truth, "prediction": predict_answer,         
                  "correct":correct, "reward":reward, 
-                "halted":halted, "error":error,"prompt":prompt}
+                "halted":halted, "error":error,"prompt":prompt, "scratchpad": scratchpad}
     with open(file_path, 'a') as f:
         json.dump(save_dict, f)
         f.write("\n")

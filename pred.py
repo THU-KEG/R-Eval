@@ -36,9 +36,6 @@ def process_agent_run_step(agent):
 def get_pred(args, data, max_context_length, dataset_name, llm_name, save_dir):
     num_workers = args.num_workers
     task_instructions = [(json_obj["input"],json_obj["outputs"][0]) for json_obj in data]
-    # TODO: remove this htotpotqa hard code
-    hotpot = joblib.load(f'data/raw/hotpotqa/medium.joblib').reset_index(drop = True)
-    task_instructions = [(row['question'], row['answer']) for _, row in hotpot.iterrows()]
     if args.environment == "wiki":
         agent_cls = get_wiki_agent(args.agent_name, dataset_name)
     elif args.environment == "aminer":
@@ -70,7 +67,7 @@ def seed_everything(seed):
 def run_dataset(dataset):
     print(f"{dataset} has began.........")
     data = []
-    with open("data/raw/{}_{}.jsonl".format(dataset2level[dataset], dataset), "r", encoding="utf-8") as f:
+    with open("data/KoLA2/{}_{}.jsonl".format(dataset2level[dataset], dataset), "r", encoding="utf-8") as f:
         for line in f:
             data.append(json.loads(line))       
     get_pred(args, data, max_length, dataset, model_name, save_dir)

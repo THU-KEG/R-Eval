@@ -1,16 +1,29 @@
 import torch, gc
 import json
-from transformers import AutoTokenizer, LlamaTokenizer, LlamaForCausalLM, AutoModelForCausalLM
+from transformers import AutoTokenizer, LlamaTokenizer, LlamaForCausalLM, \
+    AutoModelForCausalLM, StoppingCriteria, StoppingCriteriaList
 import json
 import random
 import numpy as np
 from pydantic import BaseModel
 from fastapi import FastAPI
+from typing import List
+
 # ["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k"]
 # model_name = "llama2-7b-chat-4k"
 # model_names = ["llama2-7b-chat-4k", "tulu-7b"]
 model_names = ["llama2-13b", "vicuna-13b"]
-# model_names = ["codellama-13b-instruct", "toolllama-2-7b"]
+# model_names = ["llama2-7b-chat-4k", "codellama-13b-instruct", "toolllama-2-7b"]
+
+class StopSequences(StoppingCriteria):
+    def __init__(self, stop_sequences_set):
+        super().__init__()
+        self.stop_sequences_set = stop_sequences_set
+    
+    def __call__(self, input_ids, scores):
+        if input_ids[0][-1].item() in self.stop_sequences_set:
+            return True
+        return False
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -92,17 +105,26 @@ def build_chat(tokenizer, prompt, model_name):
         prompt = f"<|user|>:{prompt}\n<|assistant|>:"
     return prompt
   
-def post_process(response, model_name):
+def post_process(response, model_name, stop_sequences):
     if "xgen" in model_name:
         response = response.strip().replace("Assistant:", "")
     elif "internlm" in model_name:
         response = response.split("<eoa>")[0]
+    for stop_sequence in stop_sequences:
+        splitted = response.split(stop_sequence)
+        non_empty = [  i for i in splitted if i.strip() != ""]
+        if len(non_empty) > 0:
+            response = non_empty[0]
+        else:
+            pass
     return response
 
-def infer(prompt, max_gen, temperature, model_name):
+def infer(prompt,  max_gen, stop_sequences, temperature, model_name):
     # truncate to fit max_length (we suggest truncate in the middle, since the left and right side may contain crucial instructions)
     torch.cuda.empty_cache()
     tokenizer = tokenizers[model_name]
+    # stop_sequences_set = set(tokenizer.encode(i)[0] for i in stop_sequences)
+    # stop_criteria = StopSequences(stop_sequences_set)
     model = models[model_name]
     tokenized_prompt = tokenizer(prompt, truncation=False, return_tensors="pt").input_ids[0]
     if len(tokenized_prompt) > max_length:
@@ -120,7 +142,7 @@ def infer(prompt, max_gen, temperature, model_name):
     scores = outputs.scores
     output_ids = outputs.sequences[0, -len(scores):]
     pred = tokenizer.decode(output_ids, skip_special_tokens=True)
-    pred = post_process(pred, model_name)
+    pred = post_process(pred, model_name, stop_sequences)
     return pred
 
 
@@ -128,6 +150,7 @@ def infer(prompt, max_gen, temperature, model_name):
 class Item(BaseModel):
     input_text: str = None
     max_new_tokens: int = 100
+    stop_sequences: List[str] = ["\n"]
     temperature: float = 1.0
 
 
@@ -135,8 +158,9 @@ class Item(BaseModel):
 def get_completion(model_name:str, request_data: Item):
     input_text = request_data.input_text
     max_new_tokens = request_data.max_new_tokens
+    stop_sequences = request_data.stop_sequences
     temperature = request_data.temperature
-    completions_text = infer(input_text, max_new_tokens, temperature, model_name)
+    completions_text = infer(input_text, max_new_tokens, stop_sequences, temperature, model_name)
     res = {
         'completions_text': completions_text,
     }

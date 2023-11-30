@@ -80,6 +80,7 @@ class langchain_llama_llm:
         data = {
             "input_text":prompt, 
             "max_new_tokens":max_tokens, 
+            "stop_sequences": stop,
             "temperature":temperature,
             }
         result = requests.post(self.url, data=json.dumps(data))
