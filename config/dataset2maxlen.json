@@ -20,8 +20,11 @@
     "passage_retrieval_zh": 32,
     "lcc": 64,
     "repobench-p": 64,
-    "konwledge_memorization": 32,
-    "konwledge_understanding": 16,
+    "high_freq_ent": 16,
+    "low_freq_ent": 16,
+    "csj": 16,
+    "cpj": 16,
+    "cic": 16,
     "longform_qa": 300,
     "finance_qa": 300,
     "alpacafarm": 300

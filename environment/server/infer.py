@@ -12,8 +12,10 @@ from typing import List
 # ["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "internlm-7b-8k"]
 # model_name = "llama2-7b-chat-4k"
 # model_names = ["llama2-7b-chat-4k", "tulu-7b"]
-model_names = ["llama2-13b", "vicuna-13b"]
+# model_names = ["llama2-13b", "vicuna-13b"]
+# model_names = ["llama2-13b", "vicuna-13b", "tulu-7b"]
 # model_names = ["llama2-7b-chat-4k", "codellama-13b-instruct", "toolllama-2-7b"]
+model_names = ["llama2-13b", "vicuna-13b", "tulu-7b", "llama2-7b-chat-4k", "codellama-13b-instruct", "toolllama-2-7b"]
 
 class StopSequences(StoppingCriteria):
     def __init__(self, stop_sequences_set):

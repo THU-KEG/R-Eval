@@ -3,7 +3,7 @@ import os
 import json
 agent_names = [ "React_wiki_run_Agent"]
 model_names = ["llama2-7b-chat-4k", "tulu-7b", "llama2-13b", "vicuna-13b", "gpt-3.5-turbo-1106", "gpt-4-1106-preview", "codellama-13b-instruct", "toolllama-2-7b"]
-dataset_name = "hotpotqa"
+dataset_name = "high_freq_ent"
 model2maxlen = json.load(open("config/model2maxlen.json", "r"))
 for agent_name in agent_names:
     for model_name in model_names:

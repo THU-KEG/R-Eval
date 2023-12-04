@@ -6,6 +6,14 @@ import hashlib
 
 dataset2level = json.load(open("config/dataset2level.json", "r"))
 origin_datasets = ["hotpotqa"]
+level2kola_path = {
+    "1-1": "/data2/cookie/input/KG/2_high_freq_ent/test.json",
+    "1-2": "/data2/cookie/input/KG/1_low_freq_ent/test.json",
+    "2-1": "/data2/cookie/input/IE/COPEN/csj/dev.json",
+    "2-2": "/data2/cookie/input/IE/COPEN/cpj/dev.json",
+    "2-3": "/data2/cookie/input/IE/COPEN/cic/dev.json",
+    "3-1": "/data2/cookie/input/Applying/hotpotqa/hotpotqa_sample.json",
+}
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
@@ -15,7 +23,7 @@ def parse_args(args=None):
         "--dataset",
         type=str,
         default="all",
-        choices=["all", "hotpotqa","lcc", "multi_news", "qmsum","alpacafarm"],
+        choices=["all", "hotpotqa","kola", "multi_news", "qmsum","alpacafarm"],
     )
     return parser.parse_args(args)
 
@@ -75,6 +83,22 @@ def load_wiki_hotpotqa(output_dir, dataset):
             output = _instance[1]
             cal_len_and_output(input, output, f, dataset, env="wiki")
 
+def load_kola(output_dir, dataset):
+    # need 1-1, 1-2. COPEN
+    datasets = [ "high_freq_ent", "low_freq_ent", "csj", "cpj", "cic"]
+    for dataset in datasets:
+        level = dataset2level[dataset]
+        data_path = level2kola_path[level]
+        output_path = f"{output_dir}/{level}_{dataset}.jsonl"
+        with open(output_path, "w") as f:
+            data_file = json.load(open(data_path, 'r'))["request_states"]
+            for _instance in data_file:
+                instance = _instance["instance"]
+                input = instance["input"]["text"]
+                output = instance["references"][0]["output"]["text"]
+                cal_len_and_output(input, output, f, dataset, env="wiki")
+
+
 
 
 def get_data(environment, dataset):
@@ -82,6 +106,8 @@ def get_data(environment, dataset):
     if environment == "wiki":
         if dataset == "hotpotqa":
             load_wiki_hotpotqa(output_dir, dataset)
+        elif dataset == "kola":
+            load_kola(output_dir, dataset)
             
 
 if __name__ == '__main__':

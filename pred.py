@@ -23,7 +23,7 @@ def parse_args(args=None):
         "--dataset",
         type=str,
         default="hotpotqa",
-        choices=["konwledge_memorization","konwledge_understanding","longform_qa",
+        choices=[ "high_freq_ent", "low_freq_ent", "csj", "cpj", "cic",
                         "finance_qa","hotpotqa","lcc", "multi_news", "qmsum","alpacafarm", "all"],
     )
     parser.add_argument('--num_workers', type=int, default=1) # for multi-threading, suitable for api-based llms like gpt3.5
