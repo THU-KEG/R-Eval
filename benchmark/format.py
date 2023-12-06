@@ -12,7 +12,7 @@ level2kola_path = {
     "2-1": "/data2/cookie/input/IE/COPEN/csj/dev.json",
     "2-2": "/data2/cookie/input/IE/COPEN/cpj/dev.json",
     "2-3": "/data2/cookie/input/IE/COPEN/cic/dev.json",
-    "3-1": "/data2/cookie/input/Applying/hotpotqa/hotpotqa_sample.json",
+    "3-1": "",
 }
 
 def parse_args(args=None):

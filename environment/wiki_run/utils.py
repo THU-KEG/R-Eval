@@ -8,6 +8,7 @@
 import os
 import joblib
 import json
+import datetime
 
 def summarize_trial(agents):
     correct = [a for a in agents if a.is_correct()]
@@ -101,7 +102,10 @@ def get_non_error_tasks(sessions):
 def delete_error(file_name):
     sessions = get_all_agent_sessions(file_name)
     non_error_sessions = [sess for sess in sessions if not sess["error"]]
+    # get date str
+    x = datetime.datetime.now()
     with open(file_name+'.back', 'a') as b_f:
+        b_f.write(f"backup at {x}\n")
         for sess in sessions:
             json.dump(sess, b_f)
             b_f.write('\n')
