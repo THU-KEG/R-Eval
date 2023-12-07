@@ -1,8 +1,12 @@
 import argparse
 import joblib
 import os
+import random
 import json
 import hashlib
+from pred import seed_everything
+
+seed_everything(42)
 
 dataset2level = json.load(open("config/dataset2level.json", "r"))
 origin_datasets = ["hotpotqa"]
@@ -12,7 +16,9 @@ level2kola_path = {
     "2-1": "/data2/cookie/input/IE/COPEN/csj/dev.json",
     "2-2": "/data2/cookie/input/IE/COPEN/cpj/dev.json",
     "2-3": "/data2/cookie/input/IE/COPEN/cic/dev.json",
-    "3-1": "",
+    "3-1": "hotpotqa",
+    "3-2": "/home/ubuntu/KoLA2/data/raw/up/2wiki_dev.json",
+    "3-3": "/home/ubuntu/KoLA2/data/raw/up/musique_ans_v1.0_dev.jsonl",
 }
 
 def parse_args(args=None):
@@ -22,7 +28,7 @@ def parse_args(args=None):
     parser.add_argument( # for specific dataset
         "--dataset",
         type=str,
-        default="all",
+        default="kola",
         choices=["all", "hotpotqa","kola", "multi_news", "qmsum","alpacafarm"],
     )
     return parser.parse_args(args)
@@ -85,18 +91,44 @@ def load_wiki_hotpotqa(output_dir, dataset):
 
 def load_kola(output_dir, dataset):
     # need 1-1, 1-2. COPEN
-    datasets = [ "high_freq_ent", "low_freq_ent", "csj", "cpj", "cic"]
+    # datasets = [ "high_freq_ent", "low_freq_ent", "csj", "cpj", "cic", "2wikimultihopqa", "musique"]
+    datasets = [ "musique", "2wikimultihopqa"]
     for dataset in datasets:
         level = dataset2level[dataset]
         data_path = level2kola_path[level]
         output_path = f"{output_dir}/{level}_{dataset}.jsonl"
         with open(output_path, "w") as f:
-            data_file = json.load(open(data_path, 'r'))["request_states"]
-            for _instance in data_file:
-                instance = _instance["instance"]
-                input = instance["input"]["text"]
-                output = instance["references"][0]["output"]["text"]
-                cal_len_and_output(input, output, f, dataset, env="wiki")
+            if dataset == "2wikimultihopqa":
+                data_file = json.load(open(data_path, 'r'))
+                data_file = random.sample(data_file, 100)
+                print(len(data_file))
+                for _instance in data_file:
+                    question = _instance['question']
+                    answer = _instance['answer']
+                    cal_len_and_output(question, answer, f, dataset, env="wiki")
+            elif dataset == "musique":
+                fin = open(data_path, 'r')
+                lines = fin.readlines()
+                candidates = []
+                for line in lines:
+                    _instance = json.loads(line.strip())
+                    question = _instance['question']
+                    answer = _instance['answer']
+                    if _instance['answerable']:
+                        candidates.append([question, answer])
+                data_file = random.sample(candidates, 100)
+                print(len(data_file))
+                for _instance in data_file:
+                    question = _instance[0]
+                    answer = _instance[1]
+                    cal_len_and_output(question, answer, f, dataset, env="wiki")
+            else:
+                data_file = json.load(open(data_path, 'r'))["request_states"]
+                for _instance in data_file:
+                    instance = _instance["instance"]
+                    input = instance["input"]["text"]
+                    output = instance["references"][0]["output"]["text"]
+                    cal_len_and_output(input, output, f, dataset, env="wiki")
 
 
 
