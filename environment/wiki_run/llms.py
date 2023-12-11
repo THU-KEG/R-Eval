@@ -20,7 +20,7 @@ from langchain.prompts.chat import (
     AIMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-from environment.wiki_run.config import OPENAI_API_KEY, SERVER_HOST, SERVER_PORT
+from environment.wiki_run.config import OPENAI_API_KEY, ONECHATS_API_KEY, ONECHAT4_API_KEY, SERVER_HOST, SERVER_PORT
 
 OPENAI_CHAT_MODELS = ["gpt-3.5-turbo","gpt-3.5-turbo-16k-0613","gpt-3.5-turbo-16k","gpt-4-0613","gpt-4-32k-0613", "gpt-3.5-turbo-1106", "gpt-4-1106-preview"]
 OPENAI_LLM_MODELS = ["text-davinci-003","text-ada-001"]
@@ -40,7 +40,35 @@ class langchain_openai_chatllm:
         chat = ChatOpenAI(model=self.llm_name, temperature=temperature, stop=stop, max_tokens=max_tokens)
         self.chain = LLMChain(llm=chat, prompt=self.chat_prompt)
         return self.chain.run(prompt)
-        
+
+class agent_openai_chatllm:
+    def __init__(self, llm_name):
+        if "gpt-3.5" in llm_name:
+            self.url = "https://sapi.onechat.fun/v1"
+            self.api_key = ONECHATS_API_KEY
+        else:
+            self.url = "https://chatapi.onechat.fun/v1"
+            self.api_key = ONECHAT4_API_KEY
+        self.llm_name = llm_name
+        human_template="{prompt}"
+        human_message_prompt = HumanMessagePromptTemplate.from_template(human_template)
+        self.chat_prompt = ChatPromptTemplate.from_messages([human_message_prompt])
+    
+    def run(self, prompt, temperature=1, stop=['\n'], max_tokens=128):
+        chat = ChatOpenAI(
+            openai_api_base=self.url, 
+            openai_api_key=self.api_key,
+            model=self.llm_name, temperature=temperature, stop=stop, max_tokens=max_tokens
+            )
+        self.chain = LLMChain(llm=chat, prompt=self.chat_prompt)
+        # res = self.chain.run(prompt)
+        try:
+            res = self.chain.run(prompt)
+        except TypeError:
+            res = "Finish[no]"
+        return res
+
+
 class langchain_openai_llm:
     def __init__(self, llm_name):
         openai.api_key = OPENAI_API_KEY
@@ -90,7 +118,8 @@ class langchain_llama_llm:
 
 def get_llm_backend(llm_name):
     if llm_name in OPENAI_CHAT_MODELS:
-        return langchain_openai_chatllm(llm_name)
+        # return langchain_openai_chatllm(llm_name)
+        return agent_openai_chatllm(llm_name)
     elif llm_name in OPENAI_LLM_MODELS:
         return langchain_openai_llm(llm_name)
     elif llm_name in LLAMA_MODELS:

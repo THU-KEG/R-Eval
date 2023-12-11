@@ -6,7 +6,7 @@ import json
 import hashlib
 from pred import seed_everything
 
-seed_everything(42)
+
 
 dataset2level = json.load(open("config/dataset2level.json", "r"))
 origin_datasets = ["hotpotqa"]
@@ -92,7 +92,8 @@ def load_wiki_hotpotqa(output_dir, dataset):
 def load_kola(output_dir, dataset):
     # need 1-1, 1-2. COPEN
     # datasets = [ "high_freq_ent", "low_freq_ent", "csj", "cpj", "cic", "2wikimultihopqa", "musique"]
-    datasets = [ "musique", "2wikimultihopqa"]
+    # datasets = [ "musique", "2wikimultihopqa"]
+    datasets = [ "musique"]
     for dataset in datasets:
         level = dataset2level[dataset]
         data_path = level2kola_path[level]
@@ -110,9 +111,17 @@ def load_kola(output_dir, dataset):
                 fin = open(data_path, 'r')
                 lines = fin.readlines()
                 candidates = []
+                fin = open(data_path, 'r')
+                lines = fin.readlines()
+                candidates = []
+                questions = []
                 for line in lines:
                     _instance = json.loads(line.strip())
                     question = _instance['question']
+                    if question in questions:
+                        continue
+                    else:
+                        questions.append(question)
                     answer = _instance['answer']
                     if _instance['answerable']:
                         candidates.append([question, answer])
@@ -144,6 +153,7 @@ def get_data(environment, dataset):
 
 if __name__ == '__main__':
     args = parse_args()
+    seed_everything(42)
     if args.dataset == "all":
         for origin_dataset in origin_datasets:
             get_data(args.environment, origin_dataset)
