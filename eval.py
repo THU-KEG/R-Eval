@@ -31,6 +31,9 @@ def main(dataset_name, agent_names, model_names):
                         if session["question"] not in recorded:
                             scores.append(session["reward"])
                             recorded.append(session["question"])
+                        else:
+                            scores.append(session["reward"])
+                            print(f"Duplicate: {session['question']}")
                 print(f"total recorded: {len(scores)}")
                 print(f"average score: {sum(scores)/len(scores)}")
                 print(f"has error: {has_error_num}")
