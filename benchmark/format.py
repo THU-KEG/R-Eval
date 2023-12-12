@@ -19,6 +19,7 @@ level2kola_path = {
     "3-1": "hotpotqa",
     "3-2": "/home/ubuntu/KoLA2/data/raw/up/2wiki_dev.json",
     "3-3": "/home/ubuntu/KoLA2/data/raw/up/musique_ans_v1.0_dev.jsonl",
+    "3-4": "/home/ubuntu/KoLA2/data/raw/kqapro/val.json",
 }
 
 def parse_args(args=None):
@@ -29,7 +30,7 @@ def parse_args(args=None):
         "--dataset",
         type=str,
         default="kola",
-        choices=["all", "hotpotqa","kola", "multi_news", "qmsum","alpacafarm"],
+        choices=["all", "hotpotqa","kola", "kqapro", "multi_news", "qmsum","alpacafarm"],
     )
     return parser.parse_args(args)
 
@@ -139,7 +140,18 @@ def load_kola(output_dir, dataset):
                     output = instance["references"][0]["output"]["text"]
                     cal_len_and_output(input, output, f, dataset, env="wiki")
 
-
+def load_kqapro(output_dir, dataset):
+    level = dataset2level[dataset]
+    data_path = level2kola_path[level] 
+    output_path = f"{output_dir}/{level}_{dataset}.jsonl"
+    with open(output_path, "w") as f:
+        data_file = json.load(open(data_path, 'r'))
+        data_file = random.sample(data_file, 100)
+        print(len(data_file))
+        for _instance in data_file:
+            question = _instance['question']
+            answer = _instance['answer']
+            cal_len_and_output(question, answer, f, dataset, env="wiki")
 
 
 def get_data(environment, dataset):
@@ -149,6 +161,8 @@ def get_data(environment, dataset):
             load_wiki_hotpotqa(output_dir, dataset)
         elif dataset == "kola":
             load_kola(output_dir, dataset)
+        elif dataset == "kqapro":
+            load_kqapro(output_dir, dataset)
             
 
 if __name__ == '__main__':

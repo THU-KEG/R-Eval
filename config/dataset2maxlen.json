@@ -25,6 +25,7 @@
     "hotpotqa": 32,
     "2wikimultihopqa": 32,
     "musique": 32,
+    "kqapro": 32,
     "longform_qa": 300,
     "finance_qa": 300,
     "alpacafarm": 300

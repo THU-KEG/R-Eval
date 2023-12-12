@@ -36,7 +36,7 @@ class langchain_openai_chatllm:
         human_message_prompt = HumanMessagePromptTemplate.from_template(human_template)
         self.chat_prompt = ChatPromptTemplate.from_messages([human_message_prompt])
    
-    def run(self, prompt, temperature=1, stop=['\n'], max_tokens=128):
+    def run(self, prompt, temperature=0, stop=['\n'], max_tokens=128):
         chat = ChatOpenAI(model=self.llm_name, temperature=temperature, stop=stop, max_tokens=max_tokens)
         self.chain = LLMChain(llm=chat, prompt=self.chat_prompt)
         return self.chain.run(prompt)
@@ -54,7 +54,7 @@ class agent_openai_chatllm:
         human_message_prompt = HumanMessagePromptTemplate.from_template(human_template)
         self.chat_prompt = ChatPromptTemplate.from_messages([human_message_prompt])
     
-    def run(self, prompt, temperature=1, stop=['\n'], max_tokens=128):
+    def run(self, prompt, temperature=0, stop=['\n'], max_tokens=128):
         chat = ChatOpenAI(
             openai_api_base=self.url, 
             openai_api_key=self.api_key,
@@ -77,7 +77,7 @@ class langchain_openai_llm:
         )
         self.llm_name = llm_name
         
-    def run(self, prompt, temperature=0.9, stop=['\n'], max_tokens=128):
+    def run(self, prompt, temperature=0, stop=['\n'], max_tokens=128):
         llm = OpenAI(model=self.llm_name, temperature=temperature, stop=['\n'], max_tokens=max_tokens)
         chain = LLMChain(llm=llm, prompt=self.prompt_temp)
         return chain.run(prompt)
