@@ -9,22 +9,18 @@ import random
 import re, string, os
 import json 
 import time
+import requests
 import tiktoken
 from langchain.llms.base import BaseLLM
-from langchain import OpenAI, Wikipedia
-from langchain.docstore.base import Docstore
-from langchain.agents.react.base import DocstoreExplorer
-from langchain.prompts import PromptTemplate
 from collections import Counter
 
-from environment.wiki_run.pre_prompt import (react_agent_prompt, zeroshot_agent_prompt, 
-                         plan_prompt, planner_agent_prompt, plannerreact_agent_prompt)
-from environment.wiki_run.fewshots import REACT_EXAMPLE, PLANNER_EXAMPLE, PLAN_EXAMPLE, PLANNERREACT_EXAMPLE
+from environment.aminer_run.pre_prompt import react_agent_prompt
+from environment.aminer_run.fewshots import REACT_EXAMPLE
 import tiktoken
 token_enc = tiktoken.get_encoding("cl100k_base")
 
 def parse_action(string):
-    pattern = r'^(\w+)\[(.+)\]$'
+    pattern = r'^(\w+)\((.+)\)$'
     match = re.match(pattern, string)
     
     if match:
@@ -37,7 +33,7 @@ def parse_action(string):
         
 def fuzzy_parse_action(text):
     text = text.strip(' ').strip('.')
-    pattern = r'^(\w+)\[(.+)\]'
+    pattern = r'^(\w+)\((.+)\)'
     match = re.match(pattern, text)
     if match:
         action_type = match.group(1)
@@ -100,6 +96,224 @@ def f1_score(prediction, ground_truth):
 def EM(answer, key) -> bool:
     return normalize_answer(answer) == normalize_answer(key)
 
+# def send_request(data, url):
+#     headers = {'Content-Type': 'application/json'}
+#     response = requests.post(url, data=json.dumps(data), headers=headers)
+#     return response.json()
+
+class AminerDocstore():
+    def __init__(self):
+        self.base_url = "http://soay.aminer.cn/"
+        self.useless_person_info = ['interests', 'nameZh', 'avatar', 'activity']
+        self.needed_pub_info = ['id', 'title' ,'year', 'authors', 'venue', 'pubAbstract', 'ncitation']
+    
+    # def searchPerson(self, name):
+    #     query_data = {
+    #         "query": name,
+    #         "needDetails": True,
+    #         "page": 0,
+    #         "size": 10
+    #     }
+    #     url = self.base_url + "searchPerson"
+    #     res1 = send_request(query_data, url)
+    #     new_hitList = []
+    #     for res in res1['data']['hitList']:
+    #         new_data  = {}
+    #         for key in res.keys():
+    #             if key in self.useless_person_info:
+    #                 continue
+    #             new_data[key] = res[key]
+    #         #     print(key, ": ", res[key])
+    #         # print("================")
+    #         # print("new_data: ", new_data)
+    #         new_hitList.append(new_data)
+    #     if new_hitList == []:
+    #         raise "No person found"
+    #     elif len(new_hitList) == 1:
+    #         res_str = f"One person found: {json.dumps(new_hitList[0])}"
+    #         return res_str
+    #     else:
+    #         res_str = f"{len(new_hitList)} people found: {json.dumps(new_hitList)}"
+    #         return res_str
+
+    # def searchPublication(self, name):
+    #     query_data = {
+    #         "query": name,
+    #         "needDetails": True,
+    #         "page": 0,
+    #         "size": 10
+    #     }
+    #     url = self.base_url + "searchPublication"
+    #     res1 = send_request(query_data, url)
+    #     new_hitList = []
+    #     for res in res1['data']['hitList']:
+    #         new_data  = {}
+    #         for key in res.keys():
+    #             if key not in self.needed_pub_info:
+    #                 continue
+    #             new_data[key] = res[key]
+    #         #     print(key, ": ", res[key])
+    #         # print("================")
+    #         # print("new_data: ", new_data)
+    #         new_hitList.append(new_data)
+    #     if new_hitList == []:
+    #         raise "No publication found"
+    #     elif len(new_hitList) == 1:
+    #         res_str = f"One publication found: {json.dumps(new_hitList[0])}"
+    #         return res_str
+    #     else:
+    #         res_str = f"{len(new_hitList)} publications found: {json.dumps(new_hitList)}"
+    #         return res_str
+    
+    def searchPerson(self, **kwargs):
+        personList = []
+        addr = 'https://soay.aminer.cn/searchPerson'
+        headers = {
+            'Content-Type' : 'application/json'
+        }
+        searchKeyWordList = []
+        if 'name' in kwargs:
+            searchKeyWordList.append({
+                        "operate": "0",
+                        "wordType": 4,
+                        "keyword": kwargs['name'],
+                        "advanced": True,
+                        "needTranslate": True
+                    })
+        if 'interest' in kwargs:
+            searchKeyWordList.append({
+                        "operate": "0",
+                        "wordType": 2,
+                        "keyword": kwargs['interest'],
+                        "advanced": True,
+                        "needTranslate": True
+                    })
+        if 'organization' in kwargs:
+            searchKeyWordList.append({
+                        "operate": "0",
+                        "wordType": 5,
+                        "keyword": kwargs['organization'],
+                        "advanced": True,
+                        "needTranslate": True
+                    })
+        json_content = json.dumps({
+            "sort": [{'asc': False, 'field' : 'n_citation'}],
+            "searchKeyWordList": searchKeyWordList,
+            "needDetails" : True
+        })
+        response = requests.post(
+            url=addr,
+            headers = headers,
+            data = json_content
+        )
+        result = response.json()
+        for each in result['data']['hitList']:
+            # print(each)
+            try:
+                new_data = {}
+                for key in each.keys():
+                    if key in self.useless_person_info:
+                        continue
+                    new_data[key] = each[key]
+                new_data['interests'] = [each['interests'][i]['t'] for i in range(min(len(each['interests']), 10))]
+                personList.append(
+                    new_data
+                )
+            except:
+                continue
+        if personList == []:
+            raise "No person found"
+        elif len(personList) == 1:
+            res_str = f"One person found: {json.dumps(personList[0])}"
+            return res_str
+        else:
+            res_str = f"{len(personList)} people found: {json.dumps(personList)}"
+            return res_str
+    
+    def searchPublication(self, publication_info):
+        addr = 'https://soay.aminer.cn/searchPublication'
+        pubList = []
+        headers = {
+            'Content-Type' : 'application/json'
+        }
+        json_content = json.dumps({
+            "query" : publication_info,
+            'needDetails' : True,
+            'page' : 0,
+            'size' : 10,
+            "sort": [{'asc': False, 'field' : 'n_citation'}],
+        })
+        response = requests.post(
+            url=addr,
+            headers = headers,
+            data = json_content
+        )
+        result = response.json()
+        new_hitList = []
+        for res in result['data']['hitList']:
+            new_data  = {}
+            for key in res.keys():
+                if key not in self.needed_pub_info:
+                    continue
+                new_data[key] = res[key]
+            #     print(key, ": ", res[key])
+            # print("================")
+            # print("new_data: ", new_data)
+            new_hitList.append(new_data)
+
+        if new_hitList == []:
+            raise "No publication found"
+        elif len(new_hitList) == 1:
+            res_str = f"One publication found: {json.dumps(new_hitList[0])}"
+            return res_str
+        else:
+            res_str = f"{len(new_hitList)} publications found: {json.dumps(new_hitList)}"
+            return res_str
+
+    def getPersonPubs(self, id):
+        url = 'https://soay.aminer.cn/getPersonPubs'
+        addr = f"{url}?id={id}&offset=0&size=10&order=citation"
+        response = requests.get(url=addr)
+        result = response.json()['data'][0]['data']['pubs']
+        pub_list = []
+        for each in result:
+            try:
+                pub_list.append({
+                    # 'abstract' : result[i]['abstract'],
+                    'pub_id' : each['id'],
+                    'title' : each['title'],
+                    'num_citation' : each['ncitation'],
+                    'year' : each['year'],
+                    'authors_name_list' : [each['authors'][j]['name']for j in range(len(each['authors']))]
+                })
+            except:
+                continue
+        return json.dumps(pub_list)
+
+    def getCoauthors(self, id):
+        url = 'https://soay.aminer.cn/getCoauthors'
+        addr = f"{url}?id={id}"
+        response = requests.get(url=addr)
+        # print("=====================================")
+        # print(response.json())
+        # print("==============")
+        # print(response.json()['data'][0]['data'])
+        # print("=====================================")
+        result = response.json()['data'][0]['data']['crs']
+        coauthorsList = []
+        for each in result:
+            try:
+                coauthorsList.append({
+                    'person_id' : each['id'],
+                    'name' : each['name'],
+                    'relation' : each['relation']
+                })
+            except:
+                continue
+        # coauthorsList = [{'person_id' : result[i]['id'], 'relation' : result[i]['relation']} for i in range(min(len(result), 10))]
+        coauthorsList_str =  json.dumps(coauthorsList)
+        return coauthorsList_str
+
 
 class BaseAgent:
     def __init__(self,
@@ -108,7 +322,6 @@ class BaseAgent:
                  llm: BaseLLM,
                  context_len: int = 2000,
                  max_steps: int= 10,
-                 docstore: Docstore = Wikipedia()
                  ) -> None:
         
         self.question = question
@@ -119,9 +332,8 @@ class BaseAgent:
         self.examples = ""
         self.context_len = context_len
         self.run_error = False
-        self.name = "Base_wiki_run_Agent"
-
-        self.docstore = DocstoreExplorer(docstore) # Search, Lookup
+        self.name = "Base_aminer_run_Agent"
+        self.docstore = AminerDocstore()
         self.llm = llm
         
         self.enc = token_enc
@@ -201,21 +413,42 @@ class BaseAgent:
             self.step_n += 1
             return
 
-        if action_type == 'Search':
+        if action_type == 'searchPerson':
             try:
-                self.scratchpad += format_step(self.docstore.search(argument))
+                kwargs = eval("{" + 
+                              argument.replace("name", "'name'").replace("interest", "'interest'").replace("organization", "'organization'").replace("=", ": ") 
+                              + "}")
+                self.scratchpad += format_step(self.docstore.searchPerson(**kwargs))
             except Exception as e:
                 print(e)
-                self.scratchpad += f'Could not find that page, please try again.'
-            
-        elif action_type == 'Lookup':
+                self.scratchpad += f'Could not find that person, please try again.'
+        
+        elif action_type == 'searchPublication':
             try:
-                self.scratchpad += format_step(self.docstore.lookup(argument))
+                self.scratchpad += format_step(self.docstore.searchPublication(argument))
+            except Exception as e:
+                print(e)
+                self.scratchpad += f'Could not find that publication, please try again.'
+        
+        elif action_type == 'getCoauthors':
+            try:
+                # print("getCoauthors argument is")
+                print(len(argument))
+                # print(argument)
+                argument_str = argument.strip('\'').strip('\"')
+                self.scratchpad += format_step(self.docstore.getCoauthors(argument_str))
             except ValueError:
-                self.scratchpad += f'The last page Searched was not found, so you cannot Lookup a keyword in it. Please try one of the similar pages given.'
+                self.scratchpad += f'The id may not be a person\'s id for using getCoauthors. Please try other actions.'
+
+        elif action_type == 'getPersonPubs':
+            try:
+                argument_str = argument.strip('\'').strip('\"')
+                self.scratchpad += format_step(self.docstore.getPersonPubs(argument_str))
+            except ValueError:
+                self.scratchpad += f'The id may not be a person\'s id for using getPersonPubs.'
 
         else:
-            self.scratchpad += 'Invalid Action. Valid Actions are Lookup[<topic>] Search[<topic>] and Finish[<answer>].'
+            self.scratchpad += 'Invalid Action. Valid Actions are searchPerson(name=<name>, organization=<organization>, interest=<interest>), searchPublication(<name>), getCoauthors(<id>), getPersonPubs(<id>) and Finish(<answer>). Please try other actions.'
 
         print(self.scratchpad.split('\n')[-1])
 
@@ -238,7 +471,7 @@ class ReactAgent(BaseAgent):
 
         self.examples = REACT_EXAMPLE
         self.agent_prompt = react_agent_prompt
-        self.name = "React_wiki_run_Agent"
+        self.name = "React_aminer_run_Agent"
     
     def forward(self):
         self._think()
@@ -251,119 +484,9 @@ class ReactAgent(BaseAgent):
                             question = self.question,
                             scratchpad = self.scratchpad)
         
-class ZeroshotAgent(BaseAgent):
-    def __init__(self,
-                 question: str,
-                 key: str,
-                 llm,
-                 context_len: int = 2000
-                 ) -> None:
-        super().__init__(question, key, llm, context_len)
 
-        self.examples = ""
-        self.agent_prompt = zeroshot_agent_prompt
-        self.name = "Zeroshot_wiki_run_Agent"
-    
-    def forward(self):
-        action_type, argument = self._action()
-        return action_type, argument
-
-    def _build_agent_prompt(self) -> str:
-        return self.agent_prompt.format(
-                            question = self.question,
-                            scratchpad = self.scratchpad)
-        
-class ZeroshotThinkAgent(BaseAgent):
-    def __init__(self,
-                 question: str,
-                 key: str,
-                 llm,
-                 context_len: int = 2000
-                 ) -> None:
-        super().__init__(question, key, llm, context_len)
-
-        self.examples = ""
-        self.agent_prompt = zeroshot_agent_prompt
-        self.name = "ZeroshotThink_wiki_run_Agent"
-    
-    def forward(self):
-        self._think()
-        action_type, argument = self._action()
-        return action_type, argument
-
-    def _build_agent_prompt(self) -> str:
-        return self.agent_prompt.format(
-                            question = self.question,
-                            scratchpad = self.scratchpad)
-        
-class PlannerAgent(BaseAgent):
-    def __init__(self,
-                 question: str,
-                 key: str,
-                 llm,
-                 context_len: int = 2000
-                 ) -> None:
-        super().__init__(question, key, llm, context_len)
-
-        self.examples = PLANNER_EXAMPLE
-        self.plan_example = PLAN_EXAMPLE
-        self.agent_prompt = planner_agent_prompt
-        self.plan_prompt  = plan_prompt
-        self.name = "Planner_wiki_run_Agent"
-        self._plan()
-        
-    def _plan(self):
-        self.plan = format_step(self.llm(self._build_plan_prompt()))
-
-        
-    def _build_plan_prompt(self):
-        return self.plan_prompt.format(
-            examples = self.plan_example,
-            question = self.question,
-        )
-    
-    def forward(self):
-        action_type, argument = self._action()
-        return action_type, argument
-
-    def _build_agent_prompt(self) -> str:
-        prompt = self.agent_prompt.format(
-            examples = self.examples,
-            question = self.question,
-            plan = self.plan,
-            scratchpad = self.scratchpad)
-        return prompt
-
-class PlannerReactAgent(PlannerAgent):
-    def __init__(self,
-                 question: str,
-                 key: str,
-                 llm,
-                 context_len: int = 2000
-                 ) -> None:
-        super().__init__(question, key, llm, context_len)
-
-        self.examples = PLANNERREACT_EXAMPLE
-        self.plan_example = PLAN_EXAMPLE
-        self.agent_prompt = plannerreact_agent_prompt
-        self.plan_prompt  = plan_prompt
-        self.name = "PlannerReact_wiki_run_Agent"
-        self._plan()
-    
-    def forward(self):
-        self._think()
-        action_type, argument = self._action()
-        return action_type, argument
 
 
 def get_aminer_agent(agent_name, dataset_name):
-    if agent_name in ["Zeroshot_wiki_run_Agent"]:
-        return ZeroshotAgent
-    if agent_name in ["ZeroshotThink_wiki_run_Agent"]:
-        return ZeroshotThinkAgent
-    if agent_name in ["React_wiki_run_Agent"]:
+    if agent_name in ["React_aminer_run_Agent"]:
         return ReactAgent
-    if agent_name in ["Planner_wiki_run_Agent"]:
-        return PlannerAgent
-    if agent_name in ["PlannerReact_wiki_run_Agent"]:
-        return PlannerReactAgent

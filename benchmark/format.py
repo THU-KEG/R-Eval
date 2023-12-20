@@ -20,6 +20,7 @@ level2kola_path = {
     "3-2": "/home/ubuntu/KoLA2/data/raw/up/2wiki_dev.json",
     "3-3": "/home/ubuntu/KoLA2/data/raw/up/musique_ans_v1.0_dev.jsonl",
     "3-4": "/home/ubuntu/KoLA2/data/raw/kqapro/val.json",
+    "3-5": "/home/ubuntu/KoLA2/data/raw/soay/data.jsonl",
 }
 
 def parse_args(args=None):
@@ -30,7 +31,7 @@ def parse_args(args=None):
         "--dataset",
         type=str,
         default="kola",
-        choices=["all", "hotpotqa","kola", "kqapro", "multi_news", "qmsum","alpacafarm"],
+        choices=["all", "hotpotqa","kola", "kqapro", "cqa", "qmsum","alpacafarm"],
     )
     return parser.parse_args(args)
 
@@ -154,6 +155,30 @@ def load_kqapro(output_dir, dataset):
             cal_len_and_output(question, answer, f, dataset, env="wiki")
 
 
+def load_soay(output_dir, dataset):
+    level = dataset2level[dataset]
+    data_path = level2kola_path[level] 
+    output_path = f"{output_dir}/{level}_{dataset}.jsonl"
+    with open(output_path, "w") as f:
+        lines = open(data_path, 'r').readlines()
+        data_file = []
+        for line in lines:
+            _instance = json.loads(line.strip())
+            question = _instance['Query_EN']
+            answer = _instance["Answer"]
+            if answer is not str:
+                try:
+                    answer = str(answer)
+                except TypeError:
+                    answer = json.dumps(answer)
+            data_file.append({"question": question, "answer": answer})
+        data_file = random.sample(data_file, 100)
+        print(len(data_file))
+        for _instance in data_file:
+            question = _instance['question']
+            answer = _instance['answer']
+            cal_len_and_output(question, answer, f, dataset, env="aminer")
+
 def get_data(environment, dataset):
     output_dir = 'data/KoLA2'
     if environment == "wiki":
@@ -163,6 +188,9 @@ def get_data(environment, dataset):
             load_kola(output_dir, dataset)
         elif dataset == "kqapro":
             load_kqapro(output_dir, dataset)
+    elif environment == "aminer":
+        if dataset == "cqa":
+            load_soay(output_dir, dataset)
             
 
 if __name__ == '__main__':

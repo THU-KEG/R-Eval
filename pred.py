@@ -16,7 +16,8 @@ def parse_args(args=None):
     parser = argparse.ArgumentParser()
     # agent args
     parser.add_argument('--model', type=str, default="tulu-7b", choices=["llama2-7b-chat-4k", "chatglm2-6b-32k", "tulu-7b", "llama2-13b", "vicuna-13b", "gpt-3.5-turbo-1106", "gpt-4-1106-preview", "codellama-13b-instruct", "toolllama-2-7b"])
-    parser.add_argument('--agent_name', type=str, default="React_wiki_run_Agent", choices=["Zeroshot_wiki_run_Agent", "React_wiki_run_Agent", "Planner_wiki_run_Agent", "PlannerReact_wiki_run_Agent"])
+    parser.add_argument('--agent_name', type=str, default="React_wiki_run_Agent", choices=["React_wiki_run_Agent", 
+                                                                                           "React_aminer_run_Agent"])
     # environment args
     parser.add_argument('--environment', type=str, default="wiki", choices=["wiki", "aminer"])
     parser.add_argument( # for specific dataset
@@ -24,7 +25,7 @@ def parse_args(args=None):
         type=str,
         default="hotpotqa",
         choices=[ "high_freq_ent", "low_freq_ent", "csj", "cpj", "cic", "hotpotqa", "2wikimultihopqa", "musique",
-                        "kqapro","lcc", "multi_news", "qmsum","alpacafarm", "all"],
+                        "kqapro", "cqa", "multi_news", "qmsum","alpacafarm", "all"],
     )
     parser.add_argument('--num_workers', type=int, default=1) # for multi-threading, suitable for api-based llms like gpt3.5
     return parser.parse_args(args)
