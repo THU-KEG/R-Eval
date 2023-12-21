@@ -45,7 +45,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_name", type=str, default="high_freq_ent")
-    parser.add_argument("--agent_names", type=str, nargs='+' , default=[ "React_wiki_run_Agent"])
+    parser.add_argument("--agent_names", type=str, nargs='+' , default=[ "React_wiki_run_Agent", "React_aminer_run_Agent"])
     parser.add_argument("--model_names", type=str, nargs='+', default=["llama2-7b-chat-4k", "tulu-7b", "llama2-13b", "vicuna-13b", "gpt-3.5-turbo-1106", "gpt-4-1106-preview", "codellama-13b-instruct", "toolllama-2-7b"])
     args = parser.parse_args()
     main(args.dataset_name, args.agent_names, args.model_names)

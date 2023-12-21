@@ -274,7 +274,10 @@ class AminerDocstore():
         url = 'https://soay.aminer.cn/getPersonPubs'
         addr = f"{url}?id={id}&offset=0&size=10&order=citation"
         response = requests.get(url=addr)
-        result = response.json()['data'][0]['data']['pubs']
+        try:
+            result = response.json()['data'][0]['data']['pubs']
+        except KeyError:
+            return "No publication found"
         pub_list = []
         for each in result:
             try:
@@ -299,7 +302,10 @@ class AminerDocstore():
         # print("==============")
         # print(response.json()['data'][0]['data'])
         # print("=====================================")
-        result = response.json()['data'][0]['data']['crs']
+        try:
+            result = response.json()['data'][0]['data']['crs']
+        except KeyError:
+            return "No coauthors found"
         coauthorsList = []
         for each in result:
             try:

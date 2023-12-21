@@ -16,6 +16,7 @@ level2kola_path = {
     "2-1": "/data2/cookie/input/IE/COPEN/csj/dev.json",
     "2-2": "/data2/cookie/input/IE/COPEN/cpj/dev.json",
     "2-3": "/data2/cookie/input/IE/COPEN/cic/dev.json",
+    "2-4": "/home/ubuntu/KoLA2/data/raw/profiling/test.json",
     "3-1": "hotpotqa",
     "3-2": "/home/ubuntu/KoLA2/data/raw/up/2wiki_dev.json",
     "3-3": "/home/ubuntu/KoLA2/data/raw/up/musique_ans_v1.0_dev.jsonl",
@@ -31,7 +32,7 @@ def parse_args(args=None):
         "--dataset",
         type=str,
         default="kola",
-        choices=["all", "hotpotqa","kola", "kqapro", "cqa", "qmsum","alpacafarm"],
+        choices=["all", "hotpotqa","kola", "kqapro", "cqa", "profiling","alpacafarm"],
     )
     return parser.parse_args(args)
 
@@ -179,6 +180,46 @@ def load_soay(output_dir, dataset):
             answer = _instance['answer']
             cal_len_and_output(question, answer, f, dataset, env="aminer")
 
+
+def load_profiling(output_dir, dataset):
+    final_distribution =  {'Professor(教授)': 20, 'Other(其他)': 16, 'Researcher(研究员)': 14, 'Associate Professor(副教授)': 14, 'Assistant Professor(助理教授)': 10, 'Engineer(工程师)': 10, 'Lecturer(讲师)': 6, 'Associate Researcher(副研究员)': 3, 'Ph.D(博士生)': 3, 'Senior Engineer(高级工程师)': 2, 'Assistant Researcher(助理研究员)': 2}
+    level = dataset2level[dataset]
+    data_path = level2kola_path[level] 
+    output_path = f"{output_dir}/{level}_{dataset}.jsonl"
+    with open(output_path, "w") as f:
+        data_file = json.load(open(data_path, 'r'))
+        # data_file = random.sample(data_file, 1700)
+        print(len(data_file))
+        # answers = []
+        title2record = {}
+        for _instance in data_file:
+            title_text = _instance['title_text']
+            org = _instance['org']
+            name = _instance['name']
+            question = f"Your task is to predict a person's position, please choose from: Professor(教授), Researcher(研究员), Associate Professor(副教授), Assistant Professor(助理教授), Lecturer(讲师), Engineer(工程师), Senior Engineer(高级工程师), Ph.D(博士生), Associate Researcher(副研究员), Assistant Researcher(助理研究员) and Other(其他). Given search engine records: {title_text}, please identify the position of {name} from {org}."
+            answer = _instance['title']
+            try:
+                title2record[answer].append((question, answer))
+            except KeyError:
+                title2record[answer] = [(question, answer)]
+            # answers.append(answer)
+            # cal_len_and_output(question, answer, f, dataset, env="aminer")
+        # count distribution
+        # from collections import Counter
+        # counter = Counter(answers)
+        # print(counter)
+        for k, v in final_distribution.items():
+            print(k, v)
+            if k not in title2record:
+                continue
+            record = title2record[k]
+            # sample
+            record = random.sample(record, v)
+            for _instance in record:
+                question = _instance[0]
+                answer = _instance[1]
+                cal_len_and_output(question, answer, f, dataset, env="aminer")
+
 def get_data(environment, dataset):
     output_dir = 'data/KoLA2'
     if environment == "wiki":
@@ -191,6 +232,8 @@ def get_data(environment, dataset):
     elif environment == "aminer":
         if dataset == "cqa":
             load_soay(output_dir, dataset)
+        elif dataset == "profiling":
+            load_profiling(output_dir, dataset)
             
 
 if __name__ == '__main__':

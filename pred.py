@@ -24,8 +24,8 @@ def parse_args(args=None):
         "--dataset",
         type=str,
         default="hotpotqa",
-        choices=[ "high_freq_ent", "low_freq_ent", "csj", "cpj", "cic", "hotpotqa", "2wikimultihopqa", "musique",
-                        "kqapro", "cqa", "multi_news", "qmsum","alpacafarm", "all"],
+        choices=[ "high_freq_ent", "low_freq_ent", "csj", "cpj", "cic", "hotpotqa", "2wikimultihopqa", "musique","kqapro", 
+                 "cqa", "profiling", "ent", "alpacafarm", "all"],
     )
     parser.add_argument('--num_workers', type=int, default=1) # for multi-threading, suitable for api-based llms like gpt3.5
     return parser.parse_args(args)
@@ -81,9 +81,9 @@ if __name__ == '__main__':
     model_name = args.model
     max_length = model2maxlen[model_name]
     if args.environment == "wiki":
-        datasets = ["multifieldqa_en", "hotpotqa", "2wikimqa", "gov_report", "passage_retrieval_en"]
+        datasets = ["high_freq_ent", "low_freq_ent", "csj", "cpj", "cic", "hotpotqa", "2wikimultihopqa", "musique", "kqapro"]
     else:
-        datasets = ["longform_qa", "finance_qa","hotpotqa","lcc", "multi_news", "qmsum","alpacafarm"]
+        datasets = ["cqa", "profiling", "ent"]
     # id for each dataset
     dataset2level = json.load(open("config/dataset2level.json", "r"))
     # make dir for saving predictions
