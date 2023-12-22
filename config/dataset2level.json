@@ -1,6 +1,7 @@
 {
     "high_freq_ent" : "1-1",
     "low_freq_ent" : "1-2",
+    "soay_easy" : "1-3",
     "csj" : "2-1",
     "cpj" : "2-2",
     "cic" : "2-3",
@@ -9,5 +10,6 @@
     "2wikimultihopqa" : "3-2",
     "musique" : "3-3",
     "kqapro" : "3-4",
-    "cqa" : "3-5"
+    "cqa" : "3-5",
+    "soay_hard" : "3-5"
 }

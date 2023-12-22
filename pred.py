@@ -25,7 +25,7 @@ def parse_args(args=None):
         type=str,
         default="hotpotqa",
         choices=[ "high_freq_ent", "low_freq_ent", "csj", "cpj", "cic", "hotpotqa", "2wikimultihopqa", "musique","kqapro", 
-                 "cqa", "profiling", "ent", "alpacafarm", "all"],
+                 "cqa", "profiling", "soay_easy", "soay_hard", "all"],
     )
     parser.add_argument('--num_workers', type=int, default=1) # for multi-threading, suitable for api-based llms like gpt3.5
     return parser.parse_args(args)

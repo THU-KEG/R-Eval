@@ -13,6 +13,7 @@ origin_datasets = ["hotpotqa"]
 level2kola_path = {
     "1-1": "/data2/cookie/input/KG/2_high_freq_ent/test.json",
     "1-2": "/data2/cookie/input/KG/1_low_freq_ent/test.json",
+    "1-3": "/home/ubuntu/KoLA2/data/raw/ArnetGPT/soayBench/v1aminer",
     "2-1": "/data2/cookie/input/IE/COPEN/csj/dev.json",
     "2-2": "/data2/cookie/input/IE/COPEN/cpj/dev.json",
     "2-3": "/data2/cookie/input/IE/COPEN/cic/dev.json",
@@ -22,6 +23,7 @@ level2kola_path = {
     "3-3": "/home/ubuntu/KoLA2/data/raw/up/musique_ans_v1.0_dev.jsonl",
     "3-4": "/home/ubuntu/KoLA2/data/raw/kqapro/val.json",
     "3-5": "/home/ubuntu/KoLA2/data/raw/soay/data.jsonl",
+    "3-6": "/home/ubuntu/KoLA2/data/raw/ArnetGPT/soayBench/v1aminer",
 }
 
 def parse_args(args=None):
@@ -32,7 +34,7 @@ def parse_args(args=None):
         "--dataset",
         type=str,
         default="kola",
-        choices=["all", "hotpotqa","kola", "kqapro", "cqa", "profiling","alpacafarm"],
+        choices=["all", "hotpotqa","kola", "kqapro", "cqa", "profiling","soay"],
     )
     return parser.parse_args(args)
 
@@ -180,9 +182,8 @@ def load_soay(output_dir, dataset):
             answer = _instance['answer']
             cal_len_and_output(question, answer, f, dataset, env="aminer")
 
-
 def load_profiling(output_dir, dataset):
-    final_distribution =  {'Professor(教授)': 20, 'Other(其他)': 16, 'Researcher(研究员)': 14, 'Associate Professor(副教授)': 14, 'Assistant Professor(助理教授)': 10, 'Engineer(工程师)': 10, 'Lecturer(讲师)': 6, 'Associate Researcher(副研究员)': 3, 'Ph.D(博士生)': 3, 'Senior Engineer(高级工程师)': 2, 'Assistant Researcher(助理研究员)': 2}
+    final_distribution =  {'Professor': 20, 'Other': 16, 'Researcher': 14, 'Associate Professor': 14, 'Assistant Professor': 10, 'Engineer': 10, 'Lecturer': 6, 'Associate Researcher': 3, 'Ph.D': 3, 'Senior Engineer': 2, 'Assistant Researcher': 2}
     level = dataset2level[dataset]
     data_path = level2kola_path[level] 
     output_path = f"{output_dir}/{level}_{dataset}.jsonl"
@@ -196,8 +197,8 @@ def load_profiling(output_dir, dataset):
             title_text = _instance['title_text']
             org = _instance['org']
             name = _instance['name']
-            question = f"Your task is to predict a person's position, please choose from: Professor(教授), Researcher(研究员), Associate Professor(副教授), Assistant Professor(助理教授), Lecturer(讲师), Engineer(工程师), Senior Engineer(高级工程师), Ph.D(博士生), Associate Researcher(副研究员), Assistant Researcher(助理研究员) and Other(其他). Given search engine records: {title_text}, please identify the position of {name} from {org}."
-            answer = _instance['title']
+            question = f"Your task is to predict a person's position, please choose from: Professor, Researcher, Associate Professor, Assistant Professor, Lecturer, Engineer, Senior Engineer, Ph.D, Associate Researcher, Assistant Researcher, Other. Given search engine records: {title_text}, please identify the position of {name} from {org}."
+            answer = _instance['title'].split("(")[0].strip()
             try:
                 title2record[answer].append((question, answer))
             except KeyError:
@@ -220,6 +221,48 @@ def load_profiling(output_dir, dataset):
                 answer = _instance[1]
                 cal_len_and_output(question, answer, f, dataset, env="aminer")
 
+def load_soay_v1(output_dir, dataset):
+    # read data
+    data_dir = level2kola_path['1-3'] 
+    hardness2data = {
+        'easy': [],
+        'hard': []
+    }
+    for file_number in range(1, 18):
+        file_name = f"00{file_number}.jsonl"
+        data_path = os.path.join(data_dir, file_name)
+        lines = open(data_path, 'r').readlines()
+        for i, line in enumerate(lines):
+            if i < 8:
+                hardness = 'easy'
+            else:
+                hardness = 'hard'
+            _instance = json.loads(line.strip())
+            question = _instance['Query_EN']
+            answer = _instance["Answer"]
+            if answer is not str:
+                try:
+                    answer = str(answer)
+                except TypeError:
+                    answer = json.dumps(answer)
+            hardness2data[hardness].append({"question": question, "answer": answer})
+    # output
+    for level in ['1-3', '3-5']:
+        if level == '1-3':
+            dataset_hardness = 'easy'
+        else:
+            dataset_hardness = 'hard'
+        output_path = f"{output_dir}/{level}_soay_{dataset_hardness}.jsonl"
+        with open(output_path, "w") as f:
+            data_file = hardness2data[dataset_hardness]
+            data_file = random.sample(data_file, 100)
+            print(len(data_file))
+            for _instance in data_file:
+                question = _instance['question']
+                answer = _instance['answer']
+                cal_len_and_output(question, answer, f, dataset, env="aminer")
+
+
 def get_data(environment, dataset):
     output_dir = 'data/KoLA2'
     if environment == "wiki":
@@ -234,6 +277,8 @@ def get_data(environment, dataset):
             load_soay(output_dir, dataset)
         elif dataset == "profiling":
             load_profiling(output_dir, dataset)
+        elif dataset == "soay":
+            load_soay_v1(output_dir, dataset)
             
 
 if __name__ == '__main__':
