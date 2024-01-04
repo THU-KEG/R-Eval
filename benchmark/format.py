@@ -13,7 +13,7 @@ origin_datasets = ["hotpotqa"]
 level2kola_path = {
     "1-1": "/data2/cookie/input/KG/2_high_freq_ent/test.json",
     "1-2": "/data2/cookie/input/KG/1_low_freq_ent/test.json",
-    "1-3": "/home/ubuntu/KoLA2/data/raw/ArnetGPT/soayBench/v1aminer",
+    "1-3": "/home/ubuntu/KoLA2/data/raw/soayBench_v1-2",
     "2-1": "/data2/cookie/input/IE/COPEN/csj/dev.json",
     "2-2": "/data2/cookie/input/IE/COPEN/cpj/dev.json",
     "2-3": "/data2/cookie/input/IE/COPEN/cic/dev.json",
@@ -23,7 +23,7 @@ level2kola_path = {
     "3-3": "/home/ubuntu/KoLA2/data/raw/up/musique_ans_v1.0_dev.jsonl",
     "3-4": "/home/ubuntu/KoLA2/data/raw/kqapro/val.json",
     "3-5": "/home/ubuntu/KoLA2/data/raw/soay/data.jsonl",
-    "3-6": "/home/ubuntu/KoLA2/data/raw/ArnetGPT/soayBench/v1aminer",
+    "3-6": "/home/ubuntu/KoLA2/data/raw/soayBench_v1-2",
 }
 
 def parse_args(args=None):
@@ -228,17 +228,17 @@ def load_soay_v1(output_dir, dataset):
         'easy': [],
         'hard': []
     }
-    for file_number in range(1, 18):
-        file_name = f"00{file_number}.jsonl"
+    for file_number in range(1, 45):
+        file_name = f"{file_number}.jsonl"
         data_path = os.path.join(data_dir, file_name)
         lines = open(data_path, 'r').readlines()
+        if file_number < 8:
+            hardness = 'easy'
+        else:
+            hardness = 'hard'
         for i, line in enumerate(lines):
-            if i < 8:
-                hardness = 'easy'
-            else:
-                hardness = 'hard'
             _instance = json.loads(line.strip())
-            question = _instance['Query_EN']
+            question = _instance['Query_en']
             answer = _instance["Answer"]
             if answer is not str:
                 try:

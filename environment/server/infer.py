@@ -80,7 +80,8 @@ tokenizers = {}
 model2device = {}
 for i, model_name in  enumerate(model_names):
     max_length = model2maxlen[model_name]
-    device = torch.device(f"cuda:{i}" if torch.cuda.is_available() else "cpu")
+    device_order = i % torch.cuda.device_count()
+    device = torch.device(f"cuda:{device_order}" if torch.cuda.is_available() else "cpu")
     model, tokenizer = load_model_and_tokenizer(model2path[model_name], model_name, device)
     models[model_name] = model
     tokenizers[model_name] = tokenizer
