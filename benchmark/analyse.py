@@ -41,18 +41,15 @@ def parse_args(args=None):
     return parser.parse_args(args)
 
 
-class Analyzer:
-    def __init__(self, args) -> None:
-        self.args = args
-        self.aspect = args.aspect
-        self.function = args.function
-        # load data
-        self.data = self.load_data(args)
-        # define output dir
-        exp_name = f"{args.function}_{args.aspect}_{args.agent_name}_{args.model}_{args.comp_agent_name}_{args.comp_model}"
-        self.output_dir = os.path.join(args.out_dir, exp_name)
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+class DataLoader:
+    def __init__(self, result_dir, function, agent_name, model, comp_agent_name, comp_model) -> None:
+        self.result_dir = result_dir
+        self.function = function
+        self.data = self.load_data()
+        self.agent_name = agent_name
+        self.model = model
+        self.comp_agent_name = comp_agent_name
+        self.comp_model = comp_model
 
     def load_single_data(self, agent_name, model_name):
         data_dict = {
@@ -63,7 +60,7 @@ class Analyzer:
             env_dict = {}
             max_length = model2maxlen[model_name]
             dir_name = f"{agent_name}_{env}_run_Agent_{model_name}_{max_length}"
-            real_data_dir = os.path.join(self.args.result_dir, dir_name)
+            real_data_dir = os.path.join(self.result_dir, dir_name)
             # under this dir there are many jsonl files, we load by difficulty
             datasets = env2datasets[env]
             for difficulty, dataset_list in datasets.items():
@@ -80,15 +77,15 @@ class Analyzer:
             data_dict[env] = env_dict
         return data_dict
 
-    def load_pairwise_data(self, args):
-        data_a  = self.load_single_data(args.agent_name, args.model)
-        data_b = self.load_single_data(args.comp_agent_name, args.comp_model)
+    def load_pairwise_data(self):
+        data_a  = self.load_single_data(self.agent_name, self.model)
+        data_b = self.load_single_data(self.comp_agent_name, self.comp_model)
         data = [ data_a, data_b ]
         return data
 
-    def load_data(self, args):
+    def load_data(self):
         if self.function == "single":
-            data = self.load_single_data(args.agent_name, args.model)
+            data = self.load_single_data(self.agent_name, self.model)
             # will get 200 300 400 json data
             # print(len(data["wiki"]["easy"]))
             # print(len(data["wiki"]["medium"]))
@@ -96,7 +93,7 @@ class Analyzer:
             data = [data]
             
         elif self.function == "pairwise":
-            data = self.load_pairwise_data(args)
+            data = self.load_pairwise_data()
         else:
             # get all data
             data = []
@@ -105,7 +102,23 @@ class Analyzer:
                     data.append(self.load_single_data(agent_name, model_name))
         # this is a list of dict, each dict is a system's logs on an env, each env has 3 difficulty
         return data
-    
+   
+class Analyzer:
+    def __init__(self, args) -> None:
+        self.args = args
+        self.aspect = args.aspect
+        self.function = args.function
+        # load data
+        data_loader = DataLoader(args.result_dir, args.function, args.agent_name, 
+                                 args.model, args.comp_agent_name, args.comp_model) 
+        self.data = data_loader.data
+        # define output dir
+        exp_name = f"{args.function}_{args.aspect}_{args.agent_name}_{args.model}_{args.comp_agent_name}_{args.comp_model}"
+        self.output_dir = os.path.join(args.out_dir, exp_name)
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
+
+     
     def draw_histogram(self, df, y_label, title):
         plt.rc('font',family='Times New Roman')
         sns.set_theme(style="whitegrid")
