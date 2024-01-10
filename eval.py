@@ -35,7 +35,10 @@ def main(dataset_name, agent_names, model_names):
                             scores.append(session["reward"])
                             print(f"Duplicate: {session['question']}")
                 print(f"total recorded: {len(scores)}")
-                print(f"average score: {sum(scores)/len(scores)}")
+                if len(scores) == 0:
+                    continue
+                else:
+                    print(f"average score: {sum(scores)/len(scores)}")
                 print(f"has error: {has_error_num}")
                 print(f"has bad score: {has_bad_score_num}")
                 print(f"has bad pred: {has_bad_pred_num}")
@@ -45,7 +48,8 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset_name", type=str, default="high_freq_ent")
-    parser.add_argument("--agent_names", type=str, nargs='+' , default=[ "React_wiki_run_Agent", "React_aminer_run_Agent"])
+    parser.add_argument("--agent_names", type=str, nargs='+' , default=[ "React_wiki_run_Agent", "dfsdt_wiki_run_Agent","chatgpt_function_wiki_run_Agent", "PAL_wiki_run_Agent",   
+    "React_aminer_run_Agent", "dfsdt_aminer_run_Agent", "chatgpt_function_aminer_run_Agent", "PAL_aminer_run_Agent"])
     parser.add_argument("--model_names", type=str, nargs='+', default=["llama2-7b-chat-4k", "tulu-7b", "llama2-13b", "vicuna-13b", "gpt-3.5-turbo-1106", "gpt-4-1106-preview", "codellama-13b-instruct", "toolllama-2-7b"])
     args = parser.parse_args()
     main(args.dataset_name, args.agent_names, args.model_names)

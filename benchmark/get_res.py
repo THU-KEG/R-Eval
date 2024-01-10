@@ -1,6 +1,6 @@
 import argparse
 import os
-import random
+from tqdm import tqdm
 import json
 from benchmark.analyse import env2datasets, ENVS, model2maxlen, dataset2level
 from environment.aminer_run.agent_arch import f1_score
@@ -38,14 +38,15 @@ def get_retrieved_passages(train_messages):
     scratchpad = []
     for messages in train_messages:
         for message in messages:
-            if message["role"] == "system" or message["role"] == "user":
-                prompt.append(message["content"])
-            else:
-                scratchpad.append(message["content"])
+            if message["content"] is not None:
+                if message["role"] == "system" or message["role"] == "user":
+                    prompt.append(message["content"])
+                else:
+                    scratchpad.append(message["content"])
     return " ".join(prompt), " ".join(scratchpad)
 
-def load(model, agent_name):
-    # get raw question and answer
+
+def load_raw_data_dict():
     raw_data_dict = {}
     for env in ENVS:
         for level in ["easy", "medium", "hard"]:
@@ -56,10 +57,47 @@ def load(model, agent_name):
                     for line in f:
                         raw_data.append(json.loads(line)) 
                 raw_data_dict[dataset] = raw_data
+    return raw_data_dict
+
+def load(model, agent_name):
+    # get raw question and answer
+    raw_data_dict = load_raw_data_dict()
     # get other agents' results
     results = {}
     if agent_name == "PAL":
         root_dir = "/home/ubuntu/soay-wiki/results"
+        sub_name = f"{model}"
+        data_dir = os.path.join(root_dir, sub_name)
+        jsonl_names = os.listdir(data_dir)
+        for jsonl_name in jsonl_names:
+            if jsonl_name.endswith("jsonl"):
+                res = []
+                data_set_name = jsonl_name.split(".")[0][4:]
+                print(data_set_name)
+                if data_set_name in ["cqa"]:
+                    continue
+                jsonl_path = os.path.join(data_dir, jsonl_name)
+                with open(jsonl_path, "r") as f:
+                    for line in f.readlines():
+                        json_obj = json.loads(line)
+                        question = json_obj["query_info"]["input"]
+                        answer = json_obj["query_info"]["outputs"][0]
+                        prediction = json_obj["answer"]
+                        f1 = f1_score(prediction, answer)[0]
+                        is_corre = True if prediction == answer else False
+                        _dict = {
+                            "question": question,
+                            "answer": answer,
+                            "prediction": prediction,
+                            "prompt": json_obj["code"],
+                            "scratchpad": json_obj["info"],
+                            "reward": f1,
+                            "correct": is_corre,
+                            "halted": False, 
+                            "error": False, 
+                        }
+                        res.append(_dict)
+                results[data_set_name] = res
     else:
         root_dir = "/home/ubuntu/xyy_use/bench/data/answer/kolaans"
         sub_name = f"{model}_{agent_name}"
@@ -70,26 +108,49 @@ def load(model, agent_name):
             if os.path.isdir(sub_dir):
                 res = []
                 data_set_name = sub_dir_name[4:]
+                print(data_set_name)
+                if data_set_name in ["cqa"]:
+                    continue
                 raw_data = raw_data_dict[data_set_name]
-                for i, json_obj in enumerate(raw_data):
+                for i, json_obj in tqdm(enumerate(raw_data)):
                     _id = 20000 + i
                     file_name = f"{_id}_DFS_woFilter_w2.json"
                     file_path = os.path.join(sub_dir, file_name)
+                    if not os.path.exists(file_path):
+                        print("Lack instance", file_path)
+                        continue
                     question = json_obj["input"]
                     answer = json_obj["outputs"][0]
                     with open(file_path, "r") as f:
                         raw_res = json.load(f)
                         # check the answer_generation key
                         answer_generation = raw_res["answer_generation"]
-                        final_answer_idct = json.loads(answer_generation["final_answer"])
+                        try:
+                            final_answer_idct = json.loads(answer_generation["final_answer"])
+                        except json.JSONDecodeError:
+                            final_answer_idct = {
+                                "final_answer": ""
+                            }
+                            answer_generation['train_messages']  =  []
                         if "final_answer" in final_answer_idct:
                             prediction = final_answer_idct["final_answer"]
                         else:
                             prediction = "give up"
                         query = answer_generation['query']
-                        prompt, scratchpad = get_retrieved_passages(answer_generation['train_messages'])
-                        assert query == question
-                        f1 = f1_score(prediction, answer)
+                        try:
+                            prompt, scratchpad = get_retrieved_passages(answer_generation['train_messages'])
+                        except TypeError:
+                            print("TypeError")
+                            # print(answer_generation['train_messages'])
+                            quit()
+                        if query != question:
+                            print("query != question")
+                            question = query
+                            # print(query)
+                            # print("question:")
+                            # print(question)
+                            continue
+                        f1 = f1_score(prediction, answer)[0]
                         is_corre = True if prediction == answer else False
                         _dict = {
                             "question": question,
