@@ -49,7 +49,7 @@ def get_retrieved_passages(train_messages):
 def load_raw_data_dict():
     raw_data_dict = {}
     for env in ENVS:
-        for level in ["easy", "medium", "hard"]:
+        for level in ["KM", "KU", "KA"]:
             dataset_names = env2datasets[env][level]
             for dataset in dataset_names:
                 raw_data = []
@@ -111,7 +111,11 @@ def load(model, agent_name):
                 print(data_set_name)
                 if data_set_name in ["cqa"]:
                     continue
-                raw_data = raw_data_dict[data_set_name]
+                try:
+                    raw_data = raw_data_dict[data_set_name]
+                except KeyError:
+                    print("KeyError")
+                    continue
                 for i, json_obj in tqdm(enumerate(raw_data)):
                     _id = 20000 + i
                     file_name = f"{_id}_DFS_woFilter_w2.json"

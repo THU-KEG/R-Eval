@@ -7,16 +7,28 @@ import json
 from pred import seed_everything
 model2maxlen = json.load(open("config/model2maxlen.json", "r"))
 dataset2level = json.load(open("config/dataset2level.json", "r"))
+# env2datasets = {
+#     "wiki" : {
+#         "easy": ["high_freq_ent", "low_freq_ent"],
+#         "medium": ["csj", "cpj", "cic"],
+#         "hard": ["hotpotqa", "2wikimultihopqa", "musique", "kqapro"]
+#     },
+#     "aminer" :{
+#         "easy": ["soay_easy"],
+#         "medium": ["profiling"],
+#         "hard": ["soay_hard"]
+#     }
+# }
 env2datasets = {
     "wiki" : {
-        "easy": ["high_freq_ent", "low_freq_ent"],
-        "medium": ["csj", "cpj", "cic"],
-        "hard": ["hotpotqa", "2wikimultihopqa", "musique", "kqapro"]
+        "KM": ["high_freq_ent", "low_freq_ent"],
+        "KU": ["csj", "cpj", "cic"],
+        "KA": ["hotpotqa", "2wikimultihopqa", "musique", "kqapro"]
     },
     "aminer" :{
-        "easy": ["soay_easy"],
-        "medium": ["profiling"],
-        "hard": ["soay_hard"]
+        "KM": ["soay_easy"],
+        "KU": ["profiling"],
+        "KA": ["soay_hard"]
     }
 }
 LLM = ["llama2-7b-chat-4k", "tulu-7b", "llama2-13b", "vicuna-13b", "gpt-3.5-turbo-1106", "gpt-4-1106-preview", "codellama-13b-instruct", "toolllama-2-7b"]
