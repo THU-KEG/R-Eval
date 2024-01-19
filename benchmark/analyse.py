@@ -4,6 +4,10 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import json
+from collections import defaultdict
+import textwrap
+import sys
+sys.path.append('/home/ubuntu/KoLA2')
 from pred import seed_everything
 model2maxlen = json.load(open("config/model2maxlen.json", "r"))
 dataset2level = json.load(open("config/dataset2level.json", "r"))
@@ -147,6 +151,48 @@ class Analyzer:
         plt.savefig(out_path, bbox_inches='tight')
         plt.close()
 
+    def draw_boxplot(self, df, y_label, title):
+        # step1: set basic info
+        plt.rc('font',family='Times New Roman')
+        sns.set_theme(style="ticks")
+        b=sns.boxplot(
+            data=df, x="difficulty", y="reward", hue="env",
+            palette="flare"
+        )
+        sns.despine(offset=10, top=True, right=True, trim=True)
+        b.set(xlabel="Tasks", ylabel=y_label)
+        b.set_title(title)
+
+        # step2: add notes for peaks
+        boxes = b.patches
+        for i, box in enumerate(boxes):
+            if i < len(df)/len(boxes):    
+                box_path = box.get_path()
+                extents = box_path.get_extents()
+                x, y, width, height = extents.xmin, extents.ymin, extents.width, extents.height
+                # print(i, x, y, width, height)
+
+                max_indices = df.groupby("difficulty")["reward"].idxmax()
+
+                max_feature_value = df.loc[max_indices, "name"]  
+                
+                # set properties of annotations
+                wid = 10  
+                max_feature_value = textwrap.fill(max_feature_value.iloc[0], width=wid)
+                fontdict={
+                    'fontname': 'sans-serif', 
+                    'fontsize': 8, 
+                    'fontweight': 'bold'
+                }
+
+                b.text(x + width/2,(y + height)* 1.1, max_feature_value,
+                        ha='center', va='bottom', color='black', fontdict=fontdict)
+
+        out_path = os.path.join(self.output_dir, f"{title}_boxplot.pdf")
+
+        plt.savefig(out_path, bbox_inches='tight')
+        plt.close()
+
     def retrieval_analysis(self):
         pass
 
@@ -190,7 +236,34 @@ class Analyzer:
                 final_data.append(final_dict)
         df = pd.DataFrame(final_data)
         self.draw_histogram(df, y_label="F1", title="best_system")
-        
+
+    def combination_analysis_norm(self):
+        # step1: calculate standard value
+        for data_dict_std in self.data:
+            final_data = []
+            std_dict = defaultdict(dict)
+            system_name = f"{data_dict_std['agent_name']}_{data_dict_std['model_name']}_based"
+            for env in ENVS:
+                    for difficulty, data_lst in data_dict_std[env].items():
+                        reward_lst = [json_obj["reward"] for json_obj in data_lst]
+                        avg_reward = sum(reward_lst) / len(reward_lst)
+                        std_dict[difficulty][env] = avg_reward
+            # step2: sequencely obtain normalized data
+            for env in ENVS:
+                for data_dict in self.data:
+                    for difficulty, data_lst in data_dict[env].items():
+                        reward_lst = [json_obj["reward"] for json_obj in data_lst]
+                        avg_reward = sum(reward_lst) / len(reward_lst)
+                        final_dict = {
+                            "name": data_dict['model_name'],
+                            "env": env,
+                            "difficulty": difficulty,
+                            "reward": avg_reward/std_dict[difficulty][env],
+                        }
+                        final_data.append(final_dict)
+            df = pd.DataFrame(final_data)
+            self.draw_boxplot(df, y_label="Normalized score", title=system_name)
+    
 
     def run(self):
         if self.aspect == "retrieval":
@@ -198,7 +271,7 @@ class Analyzer:
         elif self.aspect == "model":
             self.model_analysis()
         else:
-            self.combination_analysis()
+            self.combination_analysis_norm()
 
 
 if __name__ == '__main__':
