@@ -171,13 +171,11 @@ class Analyzer:
                 extents = box_path.get_extents()
                 x, y, width, height = extents.xmin, extents.ymin, extents.width, extents.height
                 # print(i, x, y, width, height)
-
                 max_indices = df.groupby("difficulty")["reward"].idxmax()
-
-                max_feature_value = df.loc[max_indices, "name"]  
-                
+                max_feature_value = df.loc[max_indices, "name"]
+                max_value = df.loc[max_indices, "reward"]
                 # set properties of annotations
-                wid = 10  
+                wid = 14 
                 max_feature_value = textwrap.fill(max_feature_value.iloc[0], width=wid)
                 fontdict={
                     'fontname': 'sans-serif', 
@@ -185,13 +183,23 @@ class Analyzer:
                     'fontweight': 'bold'
                 }
 
-                b.text(x + width/2,(y + height)* 1.1, max_feature_value,
-                        ha='center', va='bottom', color='black', fontdict=fontdict)
+                b.text(
+                    x + width/2, 
+                    y + height + max_value.iloc[0]*0.05,  # translate by 8% of max value
+                    max_feature_value,
+                    ha='center', 
+                    va='bottom', 
+                    color='black', 
+                    fontdict=fontdict
+                )
 
         out_path = os.path.join(self.output_dir, f"{title}_boxplot.pdf")
 
         plt.savefig(out_path, bbox_inches='tight')
         plt.close()
+
+    def draw_trendplot(self, df, y_label, title):
+        pass
 
     def retrieval_analysis(self):
         pass
@@ -237,8 +245,8 @@ class Analyzer:
         df = pd.DataFrame(final_data)
         self.draw_histogram(df, y_label="F1", title="best_system")
 
-    def combination_analysis_norm(self):
-        # step1: calculate standard value
+        # step4: draw normalizational boxplot
+        # sub-step1: calculate standard value
         for data_dict_std in self.data:
             final_data = []
             std_dict = defaultdict(dict)
@@ -248,7 +256,7 @@ class Analyzer:
                         reward_lst = [json_obj["reward"] for json_obj in data_lst]
                         avg_reward = sum(reward_lst) / len(reward_lst)
                         std_dict[difficulty][env] = avg_reward
-            # step2: sequencely obtain normalized data
+            # sub-step2: sequencely obtain normalized data
             for env in ENVS:
                 for data_dict in self.data:
                     for difficulty, data_lst in data_dict[env].items():
@@ -263,6 +271,9 @@ class Analyzer:
                         final_data.append(final_dict)
             df = pd.DataFrame(final_data)
             self.draw_boxplot(df, y_label="Normalized score", title=system_name)
+        
+        # step5: draw best performance of model group trend 
+        
     
 
     def run(self):
@@ -271,7 +282,7 @@ class Analyzer:
         elif self.aspect == "model":
             self.model_analysis()
         else:
-            self.combination_analysis_norm()
+            self.combination_analysis()
 
 
 if __name__ == '__main__':
