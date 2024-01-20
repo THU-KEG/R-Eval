@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import json
 from collections import defaultdict
 import textwrap
+from itertools import combinations
 import sys
 sys.path.append('/home/ubuntu/KoLA2')
 from pred import seed_everything
@@ -36,9 +37,34 @@ env2datasets = {
     }
 }
 LLM = ["llama2-7b-chat-4k", "tulu-7b", "llama2-13b", "vicuna-13b", "gpt-3.5-turbo-1106", "gpt-4-1106-preview", "codellama-13b-instruct", "toolllama-2-7b"]
+llm2abc = {
+    "llama2-7b-chat-4k": 'A', 
+    "tulu-7b": 'B', 
+    "llama2-13b": 'C',
+    "vicuna-13b": 'D', 
+    "gpt-3.5-turbo-1106": 'F', 
+    "gpt-4-1106-preview": 'G', 
+    "codellama-13b-instruct": 'H', 
+    "toolllama-2-7b": 'I'
+}
 # AGENT = ["React", "FC", "PAL", "DFSDT"]
 AGENT = ["React"]
 ENVS = ["wiki", "aminer"]
+DIFF = ["KM", "KU", "KA"]
+
+def get_all_keys(d):
+    all_keys = set()
+
+    def _get_keys(data, prefix=""):
+        for key, value in data.items():
+            current_key = f"{prefix}.{key}" if prefix else key
+            all_keys.add(current_key)
+
+            if isinstance(value, dict):
+                _get_keys(value, prefix=current_key)
+
+    _get_keys(d)
+    return all_keys
 
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
@@ -141,7 +167,7 @@ class Analyzer:
         g = sns.catplot(
             data=df, kind="bar",
             x="env", y="reward", hue="difficulty",
-            ci="sd", palette="dark", alpha=.6, height=6
+            errorbar='sd', palette="dark", alpha=.6, height=6
         )
         g.despine(left=True)
         g.set_axis_labels("Domain", y_label)
@@ -198,8 +224,25 @@ class Analyzer:
         plt.savefig(out_path, bbox_inches='tight')
         plt.close()
 
-    def draw_trendplot(self, df, y_label, title):
-        pass
+    def draw_lineplot(self, df, y_label, title):
+        plt.rc('font',family='Times New Roman')
+        sns.set_theme(style="whitegrid")
+        l = sns.lineplot(
+            data=df, x="comb_num", y="best_score", hue="line_type", palette="husl", 
+            markers='so', style="env", linewidth=2,
+        )
+        sns.despine(offset=10, left=True)
+        l.set(xlabel="Combined number", ylabel=y_label)
+        l.set_title(title)
+        l.set_xlim(1+0.5, len(self.data)+0.5)
+        l.set_ylim(0.2, 1.1)
+        l.legend(bbox_to_anchor=(1.1, 1), loc='upper right', ncol=2, fontsize=8)
+
+        out_path = os.path.join(self.output_dir, f"{title}_lineplot.pdf")
+
+        plt.savefig(out_path, bbox_inches='tight')
+        plt.close()
+
 
     def retrieval_analysis(self):
         pass
@@ -223,13 +266,13 @@ class Analyzer:
                         "reward": avg_reward,
                     }
                     final_data.append(final_dict)
-                    # step2: get best of n system for combination score
-                    for i, reward in enumerate(reward_lst):
-                        last_reward = best_system[env][difficulty][i]["reward"]
-                        if reward > last_reward:
-                            best_system[env][difficulty][i] = data_lst[i]
-            df = pd.DataFrame(final_data)
-            self.draw_histogram(df, y_label="F1", title=system_name)
+            #         # step2: get best of n system for combination score
+            #         for i, reward in enumerate(reward_lst):
+            #             last_reward = best_system[env][difficulty][i]["reward"]
+            #             if reward > last_reward:
+            #                 best_system[env][difficulty][i] = data_lst[i]
+            # df = pd.DataFrame(final_data)
+            # self.draw_histogram(df, y_label="F1", title=system_name)
         # step3: draw best system histogram
         final_data = []
         for env in ENVS:
@@ -244,6 +287,7 @@ class Analyzer:
                 final_data.append(final_dict)
         df = pd.DataFrame(final_data)
         self.draw_histogram(df, y_label="F1", title="best_system")
+        print("Finished draw performance histogram")
 
         # step4: draw normalizational boxplot
         # sub-step1: calculate standard value
@@ -271,10 +315,51 @@ class Analyzer:
                         final_data.append(final_dict)
             df = pd.DataFrame(final_data)
             self.draw_boxplot(df, y_label="Normalized score", title=system_name)
+            out_path = os.path.join(self.output_dir, f"{system_name}_normalized_data.jsonl")
+            with open(out_path, 'w') as jsonl_file:
+                jsonl_file.write(json.dumps(final_data, indent=2))
+        print("Finished draw normalizational boxplot")
+
+        # step5: deside best performance of model group on each task
+        N = len(self.data)
+        final_data = []
+        for env in ENVS:
+            for difficulty in DIFF:
+                best_grp = ''
+                best_score = -1e8
+                #sub-step1: traverse each combination num
+                for i in range(2, N+1):
+                    grp = list(combinations(self.data, i))  # all possible combinations
+                    len_tsk = len(grp[0][0][env][difficulty])
+                    for g in grp:
+                        name_comb = '+'.join([llm2abc[gg["model_name"]] for gg in g])
+                        score_sum = 0
+                        for j in range(0, len_tsk):  # sub-step2 traverse all instance
+                            max_value = max(d[env][difficulty][j]['reward'] for d in g)
+                            score_sum += max_value
+                        score_sum = score_sum / len_tsk
+                        if score_sum >= best_score:  # compare with best score
+                            best_grp = name_comb
+                            best_score = score_sum
+                            # print(f"get_best, task:{env},{difficulty},name:{name_comb}, score:{best_score:.4f}")
+                    final_dict = {
+                                "env": env,
+                                "difficulty": difficulty,
+                                "line_type": '_'.join((env,difficulty)),
+                                "comb_num": i,
+                                "best_group": best_grp,
+                                "best_score": best_score
+                            }
+                    final_data.append(final_dict)
         
-        # step5: draw best performance of model group trend 
-        
-    
+        df = pd.DataFrame(final_data)
+        self.draw_lineplot(df, y_label="Best score", title="Best group for specific task")
+        #sub-ste keep processed data
+        out_path = os.path.join(self.output_dir, f"Best_Group_origin_data.jsonl")
+        with open(out_path, 'w') as jsonl_file:
+            jsonl_file.write(json.dumps(final_data, indent=2))
+        print("Finished draw grouped lineplot")
+
 
     def run(self):
         if self.aspect == "retrieval":
