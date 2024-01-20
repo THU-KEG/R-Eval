@@ -223,78 +223,13 @@ class Analyzer:
 
         plt.savefig(out_path, bbox_inches='tight')
         plt.close()
-
-    def draw_lineplot(self, df, y_label, title):
-        plt.rc('font',family='Times New Roman')
-        sns.set_theme(style="whitegrid")
-        l = sns.lineplot(
-            data=df, x="comb_num", y="best_score", hue="line_type", palette="husl", 
-            markers='so', style="env", linewidth=2,
-        )
-        sns.despine(offset=10, left=True)
-        l.set(xlabel="Combined number", ylabel=y_label)
-        l.set_title(title)
-        l.set_xlim(1+0.5, len(self.data)+0.5)
-        l.set_ylim(0.2, 1.1)
-        l.legend(bbox_to_anchor=(1.1, 1), loc='upper right', ncol=2, fontsize=8)
-
-        out_path = os.path.join(self.output_dir, f"{title}_lineplot.pdf")
-
-        plt.savefig(out_path, bbox_inches='tight')
-        plt.close()
-
-
-    def retrieval_analysis(self):
-        pass
-
-    def model_analysis(self):
-        pass
-
-    def combination_analysis(self):
-        # step1: draw performance histogram
-        best_system = self.data[0]
-        for data_dict in self.data:
-            final_data = []
-            system_name = f"{data_dict['agent_name']}_{data_dict['model_name']}"
-            for env in ENVS:
-                for difficulty, data_lst in data_dict[env].items():
-                    reward_lst = [json_obj["reward"] for json_obj in data_lst]
-                    avg_reward = sum(reward_lst) / len(reward_lst)
-                    final_dict = {
-                        "env": env,
-                        "difficulty": difficulty,
-                        "reward": avg_reward,
-                    }
-                    final_data.append(final_dict)
-            #         # step2: get best of n system for combination score
-            #         for i, reward in enumerate(reward_lst):
-            #             last_reward = best_system[env][difficulty][i]["reward"]
-            #             if reward > last_reward:
-            #                 best_system[env][difficulty][i] = data_lst[i]
-            # df = pd.DataFrame(final_data)
-            # self.draw_histogram(df, y_label="F1", title=system_name)
-        # step3: draw best system histogram
-        final_data = []
-        for env in ENVS:
-            for difficulty, data_lst in best_system[env].items():
-                reward_lst = [json_obj["reward"] for json_obj in data_lst]
-                avg_reward = sum(reward_lst) / len(reward_lst)
-                final_dict = {
-                    "env": env,
-                    "difficulty": difficulty,
-                    "reward": avg_reward,
-                }
-                final_data.append(final_dict)
-        df = pd.DataFrame(final_data)
-        self.draw_histogram(df, y_label="F1", title="best_system")
-        print("Finished draw performance histogram")
-
-        # step4: draw normalizational boxplot
+    
+    def normalization_analysis(self):
         # sub-step1: calculate standard value
         for data_dict_std in self.data:
             final_data = []
             std_dict = defaultdict(dict)
-            system_name = f"{data_dict_std['agent_name']}_{data_dict_std['model_name']}_based"
+            system_name = f"{data_dict_std['agent_name']}_{data_dict_std['model_name']}_based_wo4"
             for env in ENVS:
                     for difficulty, data_lst in data_dict_std[env].items():
                         reward_lst = [json_obj["reward"] for json_obj in data_lst]
@@ -315,20 +250,89 @@ class Analyzer:
                         final_data.append(final_dict)
             df = pd.DataFrame(final_data)
             self.draw_boxplot(df, y_label="Normalized score", title=system_name)
-            out_path = os.path.join(self.output_dir, f"{system_name}_normalized_data.jsonl")
+            out_path = os.path.join(self.output_dir, f"{system_name}_normalized_data_wo4.jsonl")
             with open(out_path, 'w') as jsonl_file:
                 jsonl_file.write(json.dumps(final_data, indent=2))
         print("Finished draw normalizational boxplot")
+    
+
+    def draw_lineplot(self, df, y_label, title):
+        plt.rc('font',family='Times New Roman')
+        sns.set_theme(style="whitegrid")
+        l = sns.lineplot(
+            data=df, x="comb_num", y="best_score", hue="line_type", palette="husl", 
+            markers='so', style="env", linewidth=2,
+        )
+        sns.despine(offset=10, left=True)
+        l.set(xlabel="Combined number", ylabel=y_label)
+        l.set_title(title)
+        l.set_xlim(1+0.5, len(self.data)+0.5)
+        l.set_ylim(0, 1.1)
+        l.legend(bbox_to_anchor=(0, 1), loc='upper left', ncol=2, fontsize=8)
+
+        out_path = os.path.join(self.output_dir, f"{title}_lineplot.pdf")
+
+        plt.savefig(out_path, bbox_inches='tight')
+        plt.close()
+
+
+    def retrieval_analysis(self):
+        pass
+
+    def model_analysis(self):
+        pass
+
+    
+    def combination_analysis(self):
+        # # step1: draw performance histogram
+        # best_system = self.data[0]
+        # for data_dict in self.data:
+        #     final_data = []
+        #     system_name = f"{data_dict['agent_name']}_{data_dict['model_name']}"
+        #     for env in ENVS:
+        #         for difficulty, data_lst in data_dict[env].items():
+        #             reward_lst = [json_obj["reward"] for json_obj in data_lst]
+        #             avg_reward = sum(reward_lst) / len(reward_lst)
+        #             final_dict = {
+        #                 "env": env,
+        #                 "difficulty": difficulty,
+        #                 "reward": avg_reward,
+        #             }
+        #             final_data.append(final_dict)
+        #     #         # step2: get best of n system for combination score
+        #     #         for i, reward in enumerate(reward_lst):
+        #     #             last_reward = best_system[env][difficulty][i]["reward"]
+        #     #             if reward > last_reward:
+        #     #                 best_system[env][difficulty][i] = data_lst[i]
+        #     # df = pd.DataFrame(final_data)
+        #     # self.draw_histogram(df, y_label="F1", title=system_name)
+        # # step3: draw best system histogram
+        # final_data = []
+        # for env in ENVS:
+        #     for difficulty, data_lst in best_system[env].items():
+        #         reward_lst = [json_obj["reward"] for json_obj in data_lst]
+        #         avg_reward = sum(reward_lst) / len(reward_lst)
+        #         final_dict = {
+        #             "env": env,
+        #             "difficulty": difficulty,
+        #             "reward": avg_reward,
+        #         }
+        #         final_data.append(final_dict)
+        # df = pd.DataFrame(final_data)
+        # self.draw_histogram(df, y_label="F1", title="best_system")
+        # print("Finished draw performance histogram")
+
+        
 
         # step5: deside best performance of model group on each task
         N = len(self.data)
         final_data = []
         for env in ENVS:
             for difficulty in DIFF:
-                best_grp = ''
-                best_score = -1e8
                 #sub-step1: traverse each combination num
                 for i in range(2, N+1):
+                    best_grp = ''
+                    best_score = 1e8
                     grp = list(combinations(self.data, i))  # all possible combinations
                     len_tsk = len(grp[0][0][env][difficulty])
                     for g in grp:
@@ -338,10 +342,10 @@ class Analyzer:
                             max_value = max(d[env][difficulty][j]['reward'] for d in g)
                             score_sum += max_value
                         score_sum = score_sum / len_tsk
-                        if score_sum >= best_score:  # compare with best score
+                        if score_sum <= best_score:  # compare with best score
                             best_grp = name_comb
                             best_score = score_sum
-                            # print(f"get_best, task:{env},{difficulty},name:{name_comb}, score:{best_score:.4f}")
+                            print(f"get_best, task:{env},{difficulty}, name:{name_comb}, comb_num:{i}, score:{best_score:.4f}")
                     final_dict = {
                                 "env": env,
                                 "difficulty": difficulty,
@@ -353,9 +357,9 @@ class Analyzer:
                     final_data.append(final_dict)
         
         df = pd.DataFrame(final_data)
-        self.draw_lineplot(df, y_label="Best score", title="Best group for specific task")
+        self.draw_lineplot(df, y_label="Best score", title="Best group for specific task-REV")
         #sub-ste keep processed data
-        out_path = os.path.join(self.output_dir, f"Best_Group_origin_data.jsonl")
+        out_path = os.path.join(self.output_dir, f"Best_Group_origin_data_rev.jsonl")
         with open(out_path, 'w') as jsonl_file:
             jsonl_file.write(json.dumps(final_data, indent=2))
         print("Finished draw grouped lineplot")
