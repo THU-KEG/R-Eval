@@ -65,39 +65,26 @@ def load(model, agent_name):
     # get other agents' results
     results = {}
     if agent_name == "PAL":
-        root_dir = "/home/ubuntu/soay-wiki/results"
-        sub_name = f"{model}"
-        data_dir = os.path.join(root_dir, sub_name)
-        jsonl_names = os.listdir(data_dir)
-        for jsonl_name in jsonl_names:
-            if jsonl_name.endswith("jsonl"):
-                res = []
-                data_set_name = jsonl_name.split(".")[0][4:]
-                print(data_set_name)
-                if data_set_name in ["cqa"]:
-                    continue
-                jsonl_path = os.path.join(data_dir, jsonl_name)
-                with open(jsonl_path, "r") as f:
-                    for line in f.readlines():
-                        json_obj = json.loads(line)
-                        question = json_obj["query_info"]["input"]
-                        answer = json_obj["query_info"]["outputs"][0]
-                        prediction = json_obj["answer"]
-                        f1 = f1_score(prediction, answer)[0]
-                        is_corre = True if prediction == answer else False
-                        _dict = {
-                            "question": question,
-                            "answer": answer,
-                            "prediction": prediction,
-                            "prompt": json_obj["code"],
-                            "scratchpad": json_obj["info"],
-                            "reward": f1,
-                            "correct": is_corre,
-                            "halted": False, 
-                            "error": False, 
-                        }
-                        res.append(_dict)
-                results[data_set_name] = res
+        root_dirs = ["/home/ubuntu/soay-wiki/results_0118/", "/home/ubuntu/ArnetGPT-p/kola2_results_0118"]
+        for root_dir in root_dirs:
+            sub_name = f"{model}"
+            data_dir = os.path.join(root_dir, sub_name)
+            jsonl_names = os.listdir(data_dir)
+            for jsonl_name in jsonl_names:
+                if jsonl_name.endswith("jsonl"):
+                    res = []
+                    data_set_name = jsonl_name.split(".")[0][4:]
+                    print(data_set_name)
+                    if data_set_name in ["cqa"]:
+                        continue
+                    jsonl_path = os.path.join(data_dir, jsonl_name)
+                    with open(jsonl_path, "r") as f:
+                        for line in f.readlines():
+                            json_obj = json.loads(line)
+                            json_obj["answer"] = json_obj["answer"][0]
+                            json_obj["reward"] = json_obj["reward"][0]
+                            res.append(json_obj)
+                    results[data_set_name] = res
     else:
         root_dir = "/home/ubuntu/xyy_use/bench/data/answer/kolaans"
         sub_name = f"{model}_{agent_name}"

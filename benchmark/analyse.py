@@ -26,12 +26,12 @@ dataset2level = json.load(open("config/dataset2level.json", "r"))
 # }
 env2datasets = {
     "wiki" : {
-        "KM": ["high_freq_ent", "low_freq_ent"],
+        "KS": ["high_freq_ent", "low_freq_ent"],
         "KU": ["csj", "cpj", "cic"],
         "KA": ["hotpotqa", "2wikimultihopqa", "musique", "kqapro"]
     },
     "aminer" :{
-        "KM": ["soay_easy"],
+        "KS": ["soay_easy"],
         "KU": ["profiling"],
         "KA": ["soay_hard"]
     }
@@ -47,10 +47,10 @@ llm2abc = {
     "codellama-13b-instruct": 'H', 
     "toolllama-2-7b": 'I'
 }
-# AGENT = ["React", "FC", "PAL", "DFSDT"]
-AGENT = ["React"]
+AGENT = ["React", "chatgpt_function", "PAL", "dfsdt"]
+# AGENT = ["React"]
 ENVS = ["wiki", "aminer"]
-DIFF = ["KM", "KU", "KA"]
+DIFF = ["KS", "KU", "KA"]
 
 def get_all_keys(d):
     all_keys = set()
@@ -78,7 +78,7 @@ def parse_args(args=None):
     parser.add_argument('--comp_model', type=str, default="llama2-7b-chat-4k", choices=LLM)
     parser.add_argument('--comp_agent_name', type=str, default="React", choices=AGENT)
     # analyse args
-    parser.add_argument('--aspect', type=str, default="combination", choices=["retrieval", "model", "combination"])
+    parser.add_argument('--aspect', type=str, default="normalization", choices=["retrieval", "model", "combination", "normalization"])
     parser.add_argument('--function', type=str, default="all", choices=["single", "pairwise", "all"])  
     return parser.parse_args(args)
 
@@ -179,6 +179,8 @@ class Analyzer:
 
     def draw_boxplot(self, df, y_label, title):
         # step1: set basic info
+        # delete rows with name "gpt-4-1106-preview"
+        df = df[df.name != "gpt-4-1106-preview"]
         plt.rc('font',family='Times New Roman')
         sns.set_theme(style="ticks")
         b=sns.boxplot(
@@ -200,6 +202,7 @@ class Analyzer:
                 max_indices = df.groupby("difficulty")["reward"].idxmax()
                 max_feature_value = df.loc[max_indices, "name"]
                 max_value = df.loc[max_indices, "reward"]
+                print(f"max_indices:{max_indices},\nmax_value:{max_value},\nmax_feature_value:{max_feature_value}\n")
                 # set properties of annotations
                 wid = 14 
                 max_feature_value = textwrap.fill(max_feature_value.iloc[0], width=wid)
@@ -370,6 +373,8 @@ class Analyzer:
             self.retrieval_analysis()
         elif self.aspect == "model":
             self.model_analysis()
+        elif self.aspect == "normalization":
+            self.normalization_analysis()
         else:
             self.combination_analysis()
 
