@@ -2,6 +2,8 @@ import argparse
 import os
 import pandas as pd
 import seaborn as sns
+import numpy as np
+import random
 import matplotlib.pyplot as plt
 import json
 from collections import defaultdict
@@ -37,6 +39,8 @@ env2datasets = {
     }
 }
 LLM = ["llama2-7b-chat-4k", "tulu-7b", "llama2-13b", "vicuna-13b", "gpt-3.5-turbo-1106", "gpt-4-1106-preview", "codellama-13b-instruct", "toolllama-2-7b"]
+llm4dfsdt = ["gpt-3.5-turbo-1106", "gpt-4-1106-preview", "toolllama-2-7b"]
+llm4chatgptfunction = ["gpt-3.5-turbo-1106", "gpt-4-1106-preview"]
 llm2abc = {
     "llama2-7b-chat-4k": 'A', 
     "tulu-7b": 'B', 
@@ -47,7 +51,19 @@ llm2abc = {
     "codellama-13b-instruct": 'H', 
     "toolllama-2-7b": 'I'
 }
-AGENT = ["React", "chatgpt_function", "PAL", "dfsdt"]
+llm2cost = {
+    "llama2-7b-chat-4k": 7,
+    "tulu-7b": 7,
+    "llama2-13b": 13,
+    "vicuna-13b": 13,
+    "gpt-3.5-turbo-1106": 50,
+    "gpt-4-1106-preview": 100,
+    "codellama-13b-instruct": 13,
+    "toolllama-2-7b": 7
+}
+# AGENT = ["React", "chatgpt_function", "PAL", "dfsdt"]
+# AGENT = ["React", "PAL", "dfsdt", "chatgpt_function"]
+AGENT = ["PAL"]
 # AGENT = ["React"]
 ENVS = ["wiki", "aminer"]
 DIFF = ["KS", "KU", "KA"]
@@ -78,7 +94,7 @@ def parse_args(args=None):
     parser.add_argument('--comp_model', type=str, default="llama2-7b-chat-4k", choices=LLM)
     parser.add_argument('--comp_agent_name', type=str, default="React", choices=AGENT)
     # analyse args
-    parser.add_argument('--aspect', type=str, default="normalization", choices=["retrieval", "model", "combination", "normalization"])
+    parser.add_argument('--aspect', type=str, default="normalization", choices=["performance", "error", "deploy", "combination", "normalization"])
     parser.add_argument('--function', type=str, default="all", choices=["single", "pairwise", "all"])  
     return parser.parse_args(args)
 
@@ -103,6 +119,9 @@ class DataLoader:
             max_length = model2maxlen[model_name]
             dir_name = f"{agent_name}_{env}_run_Agent_{model_name}_{max_length}"
             real_data_dir = os.path.join(self.result_dir, dir_name)
+            if not os.path.exists(real_data_dir):
+                print(f"{real_data_dir} not exists")
+                continue
             # under this dir there are many jsonl files, we load by difficulty
             datasets = env2datasets[env]
             for difficulty, dataset_list in datasets.items():
@@ -140,7 +159,12 @@ class DataLoader:
             # get all data
             data = []
             for agent_name in AGENT:
-                for model_name in LLM:
+                model_list = LLM
+                if agent_name == "dfsdt":
+                    model_list = llm4dfsdt
+                elif agent_name == "chatgpt_function":
+                    model_list = llm4chatgptfunction
+                for model_name in model_list:
                     data.append(self.load_single_data(agent_name, model_name))
         # this is a list of dict, each dict is a system's logs on an env, each env has 3 difficulty
         return data
@@ -279,12 +303,176 @@ class Analyzer:
         plt.close()
 
 
-    def retrieval_analysis(self):
-        pass
+    def draw_radar(self, data, value_list, agent):
+        # 创建雷达图
+        plt.figure(figsize=(8, 8))
+        sns.set_style("whitegrid")
 
-    def model_analysis(self):
-        pass
+        # 设置雷达图的角度和标签
+        categories = list(data['Indicator'])
+        N = len(categories)
+        angles = [n / float(N) * 2 * np.pi for n in range(N)]
+        angles += angles[:1]
 
+        # 绘制雷达图的轴线
+        ax = plt.subplot(111, polar=True)
+        ax.set_theta_offset(np.pi / 2)
+        ax.set_theta_direction(-1)
+        plt.xticks(angles[:-1], categories, fontsize=12)
+
+        # 使用亮色绘制各个模型数据
+        for values_name in value_list:
+            values_series = list(data[values_name])
+            values_series += values_series[:1]
+            ax.plot(angles, values_series, 'o-', linewidth=1,markersize=3)
+            ax.fill(angles, values_series, alpha=0.3, label=values_name)
+        
+        # 添加标题和图例
+        # plt.title(title, fontsize=16)
+        plt.legend(loc='best', title="Models",fontsize='xx-small')
+
+        # 存储雷达图
+        out_path = os.path.join(self.output_dir, f"{agent}_radar.pdf")
+        plt.savefig(out_path, bbox_inches='tight')
+        plt.close()
+
+
+    def performance_analysis(self):
+        # calculate performance
+        for agent in AGENT:
+            final_dict = dict()
+            final_data = []
+            for data_dict in self.data:
+                if data_dict['agent_name'] != agent:
+                        continue
+                for env in ENVS:
+                    for difficulty, data_lst in data_dict[env].items():
+                        reward_lst = [json_obj["reward"] for json_obj in data_lst]
+                        avg_reward = sum(reward_lst) / len(reward_lst)
+                        search_name = f'{data_dict["model_name"]}_{env}_{difficulty}'
+                        final_dict[search_name] = avg_reward
+                        dict_obj = {
+                                "name": data_dict['model_name'],
+                                "agent": data_dict['agent_name'],
+                                "env": env,
+                                "difficulty": difficulty,
+                                "reward": avg_reward,
+                            }
+                        final_data.append(dict_obj)
+            out_path = os.path.join(self.output_dir, f"{agent}_performance_data.jsonl")
+            with open(out_path, 'w') as jsonl_file:
+                jsonl_file.write(json.dumps(final_data, indent=2))
+                
+            # make dataframe
+            indicator = []
+            df_dict = {}
+            for env in ENVS:
+                for difficulty in DIFF:
+                    indicator.append(f'{env}_{difficulty}')
+            df_dict['Indicator'] = indicator
+            
+            model_list = LLM
+            if agent == "dfsdt":
+                model_list = llm4dfsdt
+            elif agent == "chatgpt_function":
+                model_list = llm4chatgptfunction
+            for model in model_list:
+                model_res = []
+                for env in ENVS:
+                    for difficulty in DIFF:
+                        search_name = f'{model}_{env}_{difficulty}'
+                        model_res.append(final_dict[search_name])
+                df_dict[model] = model_res
+            data = pd.DataFrame(df_dict)
+            
+            # draw and save graph
+            self.draw_radar(data, model_list, agent)
+        
+
+    def error_analysis(self):
+        pass
+    
+    def draw_bubble(self, data, x_label, y_label, hue, size, title):
+        plt.rc('font',family='Times New Roman')
+        sns.set_theme(style="white")
+
+        # Plot miles per gallon against horsepower with other semantics
+        sns.relplot(x=x_label, y=y_label, hue=hue, size=size,sizes= (400, 2000), alpha=.8, palette="husl", height=6, data=data)
+        out_path = os.path.join(self.output_dir, f"{title}_bubble_graph.pdf")
+
+        plt.savefig(out_path, bbox_inches='tight')
+        plt.close()
+    
+    def deploy_analysis(self):
+        # calculate reward and time
+        for domain in ENVS:
+            final_data = []
+            for data_dict in self.data:
+                env = domain
+                
+                
+                # for difficulty, data_lst in data_dict[env].items():
+                #     reward_lst = []
+                #     time_lst = []
+                #     for json_obj in data_lst:
+                #         reward_lst.append(json_obj["reward"])
+                #         time_lst.append(json_obj["exe_time"])
+                #     avg_reward = sum(reward_lst) / len(reward_lst)
+                #     if len(time_lst) > 100:
+                #         time_lst = random.sample(time_lst, 100)
+                #     avg_time = sum(time_lst) / len(time_lst)
+                #     dict_obj = {
+                #             "name": data_dict['model_name'],
+                #             "env": env,
+                #             "difficulty": difficulty,
+                #             "reward": avg_reward,
+                #             "exe_time": avg_time
+                #         }
+                #     final_data.append(dict_obj)
+                
+                reward_lst = []
+                time_lst = []
+                for difficulty, data_lst in data_dict[env].items():
+                    for json_obj in data_lst:
+                        reward_lst.append(json_obj["reward"])
+                        time_lst.append(json_obj["exe_time"])
+                avg_reward = sum(reward_lst) / len(reward_lst)
+                if len(time_lst) > 100:
+                    time_lst = random.sample(time_lst, 100)
+                avg_time = sum(time_lst) / len(time_lst)
+                dict_obj = {
+                        "name": data_dict['model_name'],
+                        "env": env,
+                        "difficulty": difficulty,
+                        "reward": avg_reward,
+                        "exe_time": avg_time
+                    }
+                final_data.append(dict_obj)
+                    
+                    
+            out_path = os.path.join(self.output_dir, f"{domain}_deploy_synth_data.jsonl")
+            with open(out_path, 'w') as jsonl_file:
+                jsonl_file.write(json.dumps(final_data, indent=2))
+            
+            # make dataframe
+            model_cost = []
+            reward_list = []
+            exe_time_list = []
+            model_name = []    
+            for json_obj in final_data:
+                model_name.append(json_obj["name"])
+                exe_time_list.append(json_obj["exe_time"])
+                reward_list.append(json_obj["reward"])
+                model_cost.append(llm2cost[json_obj["name"]])
+            data = pd.DataFrame({
+                "model": model_name,
+                "reward": reward_list,
+                "time": exe_time_list,
+                "cost": model_cost
+            })
+            
+            # draw and save graph
+            self.draw_bubble(data, "time", "reward", "model", "cost", f"{domain}_synth")
     
     def combination_analysis(self):
         # # step1: draw performance histogram
@@ -369,12 +557,14 @@ class Analyzer:
 
 
     def run(self):
-        if self.aspect == "retrieval":
-            self.retrieval_analysis()
-        elif self.aspect == "model":
-            self.model_analysis()
+        if self.aspect == "performance":
+            self.performance_analysis()
+        elif self.aspect == "deploy":
+            self.deploy_analysis()
         elif self.aspect == "normalization":
             self.normalization_analysis()
+        elif self.aspect == "error":
+            self.error_analysis()
         else:
             self.combination_analysis()
 
