@@ -62,8 +62,8 @@ llm2cost = {
     "toolllama-2-7b": 7
 }
 # AGENT = ["React", "chatgpt_function", "PAL", "dfsdt"]
-# AGENT = ["React", "PAL", "dfsdt", "chatgpt_function"]
-AGENT = ["PAL"]
+AGENT = ["React", "PAL", "dfsdt", "chatgpt_function"]
+# AGENT = ["PAL"]
 # AGENT = ["React"]
 ENVS = ["wiki", "aminer"]
 DIFF = ["KS", "KU", "KA"]
@@ -86,6 +86,7 @@ def parse_args(args=None):
     parser = argparse.ArgumentParser()
     # environment args
     parser.add_argument('--result_dir', type=str, default="data/result")
+    parser.add_argument('--error_dir', type=str, default="data/error")
     parser.add_argument('--out_dir', type=str, default="data/analysis")
     # parser.add_argument('--environment', type=str, default="wiki", choices=ENVS)
     # agent args
@@ -95,13 +96,14 @@ def parse_args(args=None):
     parser.add_argument('--comp_agent_name', type=str, default="React", choices=AGENT)
     # analyse args
     parser.add_argument('--aspect', type=str, default="normalization", choices=["performance", "error", "deploy", "combination", "normalization"])
-    parser.add_argument('--function', type=str, default="all", choices=["single", "pairwise", "all"])  
+    parser.add_argument('--function', type=str, default="all", choices=["single", "pairwise", "all", "error"])  
     return parser.parse_args(args)
 
 
 class DataLoader:
-    def __init__(self, result_dir, function, agent_name, model, comp_agent_name, comp_model) -> None:
+    def __init__(self, result_dir, function, agent_name, model, comp_agent_name, comp_model, error_dir) -> None:
         self.result_dir = result_dir
+        self.error_dir = error_dir
         self.function = function
         self.data = self.load_data()
         self.agent_name = agent_name
@@ -144,6 +146,33 @@ class DataLoader:
         data = [ data_a, data_b ]
         return data
 
+    def load_single_error_data(self, agent_name, model_name):
+        data_dict = {
+            "agent_name": agent_name,
+            "model_name": model_name,
+        }
+        for env in ENVS:
+            env_dict = {}
+            dir_name = f"{agent_name}_{model_name}"
+            real_data_dir = os.path.join(self.error_dir, dir_name)
+            if not os.path.exists(real_data_dir):
+                print(f"{real_data_dir} not exists")
+                continue
+            # under this dir there are many jsonl files, we load by difficulty
+            datasets = env2datasets[env]
+            for difficulty, dataset_list in datasets.items():
+                data_lst = []
+                for dataset in dataset_list:
+                    jsonl_file = os.path.join(real_data_dir, f"{dataset}.json")
+                    with open(jsonl_file, "r", encoding="utf-8") as f:
+                        for line in f:
+                            json_obj = json.loads(line)
+                            data_lst.append(json_obj)
+                # sort the data_lst by question
+                env_dict[difficulty] = data_lst
+            data_dict[env] = env_dict
+        return data_dict
+    
     def load_data(self):
         if self.function == "single":
             data = self.load_single_data(self.agent_name, self.model)
@@ -155,6 +184,17 @@ class DataLoader:
             
         elif self.function == "pairwise":
             data = self.load_pairwise_data()
+        elif self.function == "error":
+            # get all error data
+            data = []
+            for agent_name in AGENT:
+                model_list = LLM
+                if agent_name == "dfsdt":
+                    model_list = llm4dfsdt
+                elif agent_name == "chatgpt_function":
+                    model_list = llm4chatgptfunction
+                for model_name in model_list:
+                    data.append(self.load_single_error_data(agent_name, model_name))
         else:
             # get all data
             data = []
@@ -176,7 +216,7 @@ class Analyzer:
         self.function = args.function
         # load data
         data_loader = DataLoader(args.result_dir, args.function, args.agent_name, 
-                                 args.model, args.comp_agent_name, args.comp_model) 
+                                 args.model, args.comp_agent_name, args.comp_model, args.error_dir) 
         self.data = data_loader.data
         # define output dir
         exp_name = f"{args.function}_{args.aspect}_{args.agent_name}_{args.model}_{args.comp_agent_name}_{args.comp_model}"
@@ -305,6 +345,7 @@ class Analyzer:
 
     def draw_radar(self, data, value_list, agent):
         # 创建雷达图
+        plt.rc('font',family='Times New Roman')
         plt.figure(figsize=(8, 8))
         sns.set_style("whitegrid")
 
@@ -388,9 +429,115 @@ class Analyzer:
             # draw and save graph
             self.draw_radar(data, model_list, agent)
         
+    def draw_pie(self, first_layer, second_layer, label_first, label_second, title):
+        # plt.rc('font',family='Times New Roman')
+        fig, ax = plt.subplots(figsize = (10, 10))
+        size = 0.25
+        font_size = 11
+        # 获取colormap tab20c和tab20b的颜色
+        cmap_c = plt.get_cmap("tab20c")
+        cmap_b = plt.get_cmap("tab20b")
+
+        # 使用tab20c的全部颜色和tab20b中的 5至8 颜色
+        cmap_1 = cmap_c(np.arange(20))
+        cmap_2 = cmap_b(np.array([4, 5, 6, 7]))
+
+        # 内圈的颜色是每4个颜色中色彩最深的那个. vstack是将两类颜色叠加在一起
+        inner_colors = np.vstack((cmap_1[::4], cmap_2[0]))
+        # 外圈的颜色是全部24种颜色
+        outer_colors = np.vstack((cmap_1, cmap_2))
+        
+        ax.pie(first_layer.flatten(), radius=1-size-size, 
+                labels=label_first, 
+                labeldistance=0.51,  rotatelabels=True, textprops={'fontsize': font_size}, 
+                colors=inner_colors, wedgeprops=dict(width=size, edgecolor='w'))
+        ax.pie(second_layer.flatten(),   radius=1-size, colors=outer_colors,
+                labels=label_second, 
+                labeldistance=0.71,  rotatelabels=True, textprops={'fontsize': font_size}, 
+                wedgeprops=dict(width=size, edgecolor='w'))
+        
+        out_path = os.path.join(self.output_dir, f"{title}_pie_graph.pdf")
+        plt.savefig(out_path, bbox_inches='tight')
+        plt.close()
+
 
     def error_analysis(self):
-        pass
+        for agent in AGENT:
+            model_list = LLM
+            if agent == "dfsdt":
+                model_list = llm4dfsdt
+            elif agent == "chatgpt_function":
+                model_list = llm4chatgptfunction
+            for model in model_list:
+                final_data = []
+                for data_dict in self.data:
+                    if data_dict['agent_name'] != agent or data_dict['model_name'] != model:
+                            continue
+                    for env in ENVS:
+                        for difficulty, data_lst in data_dict[env].items():
+                            ACC_lst = [json_obj["ACC"] for json_obj in data_lst]
+                            avg_ACC = sum(ACC_lst) / len(ACC_lst)
+                            WA_lst = [json_obj["WA"] for json_obj in data_lst]
+                            avg_WA = sum(WA_lst) / len(WA_lst)
+                            EM_lst = [json_obj["EM"] for json_obj in data_lst]
+                            avg_EM = sum(EM_lst) / len(EM_lst)
+                            AM_lst = [json_obj["AM"] for json_obj in data_lst]
+                            avg_AM = sum(AM_lst) / len(AM_lst)
+                            GE_lst = [json_obj["GE"] for json_obj in data_lst]
+                            avg_GE = sum(GE_lst) / len(GE_lst)
+                            ME_lst = [json_obj["ME"] for json_obj in data_lst]
+                            avg_ME = sum(ME_lst) / len(ME_lst)
+                            TE_lst = [json_obj["TE"] for json_obj in data_lst]
+                            avg_TE = sum(TE_lst) / len(TE_lst)
+                            RE_lst = [json_obj["RE"] for json_obj in data_lst]
+                            avg_RE = sum(RE_lst) / len(RE_lst)
+                            dict_obj = {
+                                    "name": data_dict['model_name'],
+                                    "agent": data_dict['agent_name'],
+                                    "env": env,
+                                    "difficulty": difficulty,
+                                    "error_data": [
+                                        [[avg_ACC], [avg_WA]],
+                                        [[avg_EM, avg_AM], [avg_GE, avg_ME, avg_TE, avg_RE]]
+                                    ]
+                                }
+                            final_data.append(dict_obj)
+                out_path = os.path.join(self.output_dir, f'{agent}_{model}_error_analysis.jsonl')
+                with open(out_path, 'w') as jsonl_file:
+                    jsonl_file.write(json.dumps(final_data, indent=2))
+                    
+                # make dataframe
+                first_layer_list = []
+                for json_obj in final_data:
+                    first_layer_list.append(np.array(json_obj["error_data"][0]))
+                first_layer_data = sum(first_layer_list) / len(first_layer_list)
+                second_layer_list = []
+                for json_obj in final_data:
+                    raw_data = json_obj["error_data"][1]
+                    raw_data[0].append(0)
+                    raw_data[0].append(0)
+                    second_layer_list.append(np.array(raw_data))
+                second_layer_data = sum(second_layer_list) / len(second_layer_list)
+                
+                first_layer_data = np.around(first_layer_data * 100, decimals = 1)
+                second_layer_data = np.around(second_layer_data * 100, decimals = 1)
+                
+                first_label = [f"ACC\n{first_layer_data[0][0]}%", f"WA\n{first_layer_data[1][0]}%"]
+                second_label = [f"EM\n{second_layer_data[0][0]}%",
+                                f"AM\n{second_layer_data[0][1]}%",
+                                "",
+                                "",
+                                
+                                f"GE\n{second_layer_data[1][0]}%",
+                                f"ME\n{second_layer_data[1][1]}%",
+                                f"TE\n{second_layer_data[1][2]}%",
+                                f"RE\n{second_layer_data[1][3]}%",
+                                ]
+                for i in range(8):
+                    if second_layer_data.flatten()[i] == 0:
+                        second_label[i] = ""
+
+                self.draw_pie(first_layer_data, second_layer_data, first_label, second_label, f'{agent}_{model}')
     
     def draw_bubble(self, data, x_label, y_label, hue, size, title):
         plt.rc('font',family='Times New Roman')
