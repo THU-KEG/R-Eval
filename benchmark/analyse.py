@@ -38,7 +38,7 @@ env2datasets = {
         "KA": ["soay_hard"]
     }
 }
-LLM = ["llama2-7b-chat-4k", "tulu-7b", "llama2-13b", "vicuna-13b", "gpt-3.5-turbo-1106", "gpt-4-1106-preview", "codellama-13b-instruct", "toolllama-2-7b"]
+LLM = ["gpt-4-1106-preview", "gpt-3.5-turbo-1106",  "toolllama-2-7b", "llama2-7b-chat-4k", "tulu-7b", "llama2-13b", "vicuna-13b",  "codellama-13b-instruct"]
 llm4dfsdt = ["gpt-3.5-turbo-1106", "gpt-4-1106-preview", "toolllama-2-7b"]
 llm4chatgptfunction = ["gpt-3.5-turbo-1106", "gpt-4-1106-preview"]
 llm2abc = {
@@ -51,13 +51,24 @@ llm2abc = {
     "codellama-13b-instruct": 'H', 
     "toolllama-2-7b": 'I'
 }
+
+llm2short = {
+    "llama2-7b-chat-4k": 'llama2-7b', 
+    "tulu-7b": 'tulu-7b', 
+    "llama2-13b": 'llama2-13b',
+    "vicuna-13b": 'vicuna-13b', 
+    "gpt-3.5-turbo-1106": 'gpt-3.5', 
+    "gpt-4-1106-preview": 'gpt-4', 
+    "codellama-13b-instruct": 'codellama-13b', 
+    "toolllama-2-7b": 'toolllama2-7b'
+}
 llm2cost = {
     "llama2-7b-chat-4k": 7,
     "tulu-7b": 7,
     "llama2-13b": 13,
     "vicuna-13b": 13,
-    "gpt-3.5-turbo-1106": 50,
-    "gpt-4-1106-preview": 100,
+    "gpt-3.5-turbo-1106": 20,
+    "gpt-4-1106-preview": 50,
     "codellama-13b-instruct": 13,
     "toolllama-2-7b": 7
 }
@@ -67,6 +78,28 @@ AGENT = ["React", "PAL", "dfsdt", "chatgpt_function"]
 # AGENT = ["React"]
 ENVS = ["wiki", "aminer"]
 DIFF = ["KS", "KU", "KA"]
+
+from matplotlib.colors import to_rgb
+
+def lighten_color(color, amount=0.5):
+    """
+    Lightens the given color by multiplying (1-luminosity) by the given amount.
+    
+    Input can be matplotlib color string, hex string, or RGB tuple.
+    
+    Examples:
+    >> lighten_color('g', 0.3)
+    >> lighten_color('#F034A3', 0.6)
+    >> lighten_color((.3,.55,.1), 0.5)
+    """
+    import matplotlib.colors as mc
+    import colorsys
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*to_rgb(c))
+    return colorsys.hls_to_rgb(c[0], 1 - amount * (1 - c[1]), c[2])
 
 def get_all_keys(d):
     all_keys = set()
@@ -92,7 +125,7 @@ def parse_args(args=None):
     # agent args
     parser.add_argument('--model', type=str, default="tulu-7b", choices=LLM)
     parser.add_argument('--agent_name', type=str, default="React", choices=AGENT)
-    parser.add_argument('--comp_model', type=str, default="llama2-7b-chat-4k", choices=LLM)
+    parser.add_argument('--comp_model', type=str, default="vicuna-13b", choices=LLM)
     parser.add_argument('--comp_agent_name', type=str, default="React", choices=AGENT)
     # analyse args
     parser.add_argument('--aspect', type=str, default="normalization", choices=["performance", "error", "deploy", "combination", "normalization"])
@@ -429,37 +462,66 @@ class Analyzer:
             # draw and save graph
             self.draw_radar(data, model_list, agent)
         
+    # def draw_pie(self, first_layer, second_layer, label_first, label_second, title):
+    #     # plt.rc('font',family='Times New Roman')
+    #     fig, ax = plt.subplots(figsize = (10, 10))
+    #     size = 0.25
+    #     font_size = 11
+    #     # 获取colormap tab20c和tab20b的颜色
+    #     cmap_c = plt.get_cmap("tab20c")
+    #     cmap_b = plt.get_cmap("tab20b")
+
+    #     # 使用tab20c的全部颜色和tab20b中的 5至8 颜色
+    #     cmap_1 = cmap_c(np.arange(20))
+    #     cmap_2 = cmap_b(np.array([4, 5, 6, 7]))
+
+    #     # 内圈的颜色是每4个颜色中色彩最深的那个. vstack是将两类颜色叠加在一起
+    #     inner_colors = np.vstack((cmap_1[::4], cmap_2[0]))
+    #     # 外圈的颜色是全部24种颜色
+    #     outer_colors = np.vstack((cmap_1, cmap_2))
+        
+    #     ax.pie(first_layer.flatten(), radius=1-size-size, 
+    #             labels=label_first, 
+    #             labeldistance=0.31,  rotatelabels=False, textprops={'fontsize': font_size}, 
+    #             colors=inner_colors)
+    #     ax.pie(second_layer.flatten(),   radius=1-size, colors=outer_colors,
+    #             labels=label_second, 
+    #             labeldistance=0.81,  rotatelabels=False, textprops={'fontsize': font_size}, 
+    #             wedgeprops=dict(width=size, edgecolor='w'))
+        
+    #     out_path = os.path.join(self.output_dir, f"{title}_pie_graph.pdf")
+    #     plt.savefig(out_path, bbox_inches='tight')
+    #     plt.close()
+
+
+
     def draw_pie(self, first_layer, second_layer, label_first, label_second, title):
-        # plt.rc('font',family='Times New Roman')
         fig, ax = plt.subplots(figsize = (10, 10))
         size = 0.25
         font_size = 11
-        # 获取colormap tab20c和tab20b的颜色
         cmap_c = plt.get_cmap("tab20c")
         cmap_b = plt.get_cmap("tab20b")
-
-        # 使用tab20c的全部颜色和tab20b中的 5至8 颜色
         cmap_1 = cmap_c(np.arange(20))
         cmap_2 = cmap_b(np.array([4, 5, 6, 7]))
-
-        # 内圈的颜色是每4个颜色中色彩最深的那个. vstack是将两类颜色叠加在一起
         inner_colors = np.vstack((cmap_1[::4], cmap_2[0]))
-        # 外圈的颜色是全部24种颜色
         outer_colors = np.vstack((cmap_1, cmap_2))
         
+        # Lighten the colors
+        inner_colors = [lighten_color(color, 0.5) for color in inner_colors]
+        outer_colors = [lighten_color(color, 0.5) for color in outer_colors]
+
         ax.pie(first_layer.flatten(), radius=1-size-size, 
                 labels=label_first, 
-                labeldistance=0.51,  rotatelabels=True, textprops={'fontsize': font_size}, 
-                colors=inner_colors, wedgeprops=dict(width=size, edgecolor='w'))
+                labeldistance=0.31,  rotatelabels=False, textprops={'fontsize': font_size}, 
+                colors=inner_colors)
         ax.pie(second_layer.flatten(),   radius=1-size, colors=outer_colors,
                 labels=label_second, 
-                labeldistance=0.71,  rotatelabels=True, textprops={'fontsize': font_size}, 
+                labeldistance=0.81,  rotatelabels=False, textprops={'fontsize': font_size}, 
                 wedgeprops=dict(width=size, edgecolor='w'))
         
         out_path = os.path.join(self.output_dir, f"{title}_pie_graph.pdf")
         plt.savefig(out_path, bbox_inches='tight')
         plt.close()
-
 
     def error_analysis(self):
         for agent in AGENT:
@@ -541,10 +603,29 @@ class Analyzer:
     
     def draw_bubble(self, data, x_label, y_label, hue, size, title):
         plt.rc('font',family='Times New Roman')
-        sns.set_theme(style="white")
+        sns.set_theme(style="whitegrid")
 
         # Plot miles per gallon against horsepower with other semantics
-        sns.relplot(x=x_label, y=y_label, hue=hue, size=size,sizes= (400, 2000), alpha=.8, palette="husl", height=6, data=data)
+        # g = sns.scatterplot(data=data, x='time', y='reward', size='cost', hue='model', sizes=(100, 2000), palette="husl")
+
+        # Plot miles per gallon against horsepower with other semantics
+        g = sns.scatterplot(data=data, x='time', y='reward', size='cost', hue='model', sizes=(100, 2000), palette="pastel", legend=False)
+        
+        # set x label
+        g.set(xlabel="Execution time (s)")
+        # set y label
+        g.set(ylabel="F1 score")
+        # Iterate over the rows of the data and add text
+        for line in data.iterrows():
+            if llm2short[line[1]['model']] in ["toolllama2-7b", "gpt-3.5", "vicuna-13b"]:
+                g.text(line[1]['time'], line[1]['reward'], llm2short[line[1]['model']], horizontalalignment='center',
+            verticalalignment='top', size='small')
+
+            else:
+                g.text(line[1]['time'], line[1]['reward'], llm2short[line[1]['model']], horizontalalignment='center',
+            verticalalignment='bottom', size='small')
+
+
         out_path = os.path.join(self.output_dir, f"{title}_bubble_graph.pdf")
 
         plt.savefig(out_path, bbox_inches='tight')
@@ -555,6 +636,8 @@ class Analyzer:
         for domain in ENVS:
             final_data = []
             for data_dict in self.data:
+                if data_dict["agent_name"] != "PAL":
+                    continue
                 env = domain
                 
                 
