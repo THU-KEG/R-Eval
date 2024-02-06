@@ -9,6 +9,7 @@ import json
 from collections import defaultdict
 import textwrap
 from itertools import combinations
+import matplotlib.patches as mpatches
 import sys
 sys.path.append('/home/ubuntu/KoLA2')
 from pred import seed_everything
@@ -26,6 +27,27 @@ dataset2level = json.load(open("config/dataset2level.json", "r"))
 #         "hard": ["soay_hard"]
 #     }
 # }
+
+
+def plot_broken_x(data, x_col, y_col, size_col, hue_col, x_ranges):
+    # 创建图表
+    fig, ax = plt.subplots()
+
+    # 绘制数据点
+    sns.scatterplot(data=data, x=x_col, y=y_col, size=size_col, hue=hue_col, sizes=(100, 2000), palette="pastel", legend=False, ax=ax)
+
+    # 设置x轴的限制和刻度
+    ax.set_xlim(x_ranges[0][0], x_ranges[1][1])
+    ax.set_xticks(list(range(x_ranges[0][0], x_ranges[0][1]+1, 25)) + list(range(x_ranges[1][0], x_ranges[1][1]+1, 25)))
+
+    # 添加断裂标记
+    d = .015  # 断裂标记的大小
+    kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
+    ax.plot(((x_ranges[0][1]-x_ranges[0][0])/(x_ranges[1][1]-x_ranges[0][0])-d, (x_ranges[0][1]-x_ranges[0][0])/(x_ranges[1][1]-x_ranges[0][0])+d), (-d, +d), **kwargs)        # top-left diagonal
+    ax.plot(((x_ranges[0][1]-x_ranges[0][0])/(x_ranges[1][1]-x_ranges[0][0])-d, (x_ranges[0][1]-x_ranges[0][0])/(x_ranges[1][1]-x_ranges[0][0])+d), (1-d, 1+d), **kwargs)  # top-right diagonal
+    ax.plot(((x_ranges[1][0]-x_ranges[0][0])/(x_ranges[1][1]-x_ranges[0][0])-d, (x_ranges[1][0]-x_ranges[0][0])/(x_ranges[1][1]-x_ranges[0][0])+d), (-d, +d), **kwargs)        # bottom-left diagonal
+    ax.plot(((x_ranges[1][0]-x_ranges[0][0])/(x_ranges[1][1]-x_ranges[0][0])-d, (x_ranges[1][0]-x_ranges[0][0])/(x_ranges[1][1]-x_ranges[0][0])+d), (1-d, 1+d), **kwargs)  # bottom-right diagonal
+
 env2datasets = {
     "wiki" : {
         "KS": ["high_freq_ent", "low_freq_ent"],
@@ -259,12 +281,20 @@ class Analyzer:
 
      
     def draw_histogram(self, df, y_label, title):
-        plt.rc('font',family='Times New Roman')
+        plt.rc('font', family='Times New Roman')
         sns.set_theme(style="whitegrid")
+
+        # Define custom palette
+        light_blue = sns.light_palette("#1f77b4", n_colors=10)[5]  # light blue
+        light_green = sns.light_palette("#ADFF2F", n_colors=10)[4]  # light green
+        light_orange = sns.light_palette("#ff7f0e", n_colors=10)[7]  # light orange
+        custom_palette = [light_blue, light_green, light_orange]
+
         g = sns.catplot(
             data=df, kind="bar",
-            x="env", y="reward", hue="difficulty",
-            errorbar='sd', palette="dark", alpha=.6, height=6
+            x="env", y="reward", hue="level",
+            height=4, aspect=1.5,  # Set the height and aspect ratio
+            errorbar='sd', palette=custom_palette, alpha=.6
         )
         g.despine(left=True)
         g.set_axis_labels("Domain", y_label)
@@ -273,6 +303,8 @@ class Analyzer:
         out_path = os.path.join(self.output_dir, f"{title}_histogram.pdf")
         plt.savefig(out_path, bbox_inches='tight')
         plt.close()
+
+
 
     def draw_boxplot(self, df, y_label, title):
         # step1: set basic info
@@ -379,7 +411,7 @@ class Analyzer:
     def draw_radar(self, data, value_list, agent):
         # 创建雷达图
         plt.rc('font',family='Times New Roman')
-        plt.figure(figsize=(8, 8))
+        plt.figure(figsize=(8, 10))
         sns.set_style("whitegrid")
 
         # 设置雷达图的角度和标签
@@ -392,18 +424,29 @@ class Analyzer:
         ax = plt.subplot(111, polar=True)
         ax.set_theta_offset(np.pi / 2)
         ax.set_theta_direction(-1)
-        plt.xticks(angles[:-1], categories, fontsize=12)
+        plt.xticks(angles[:-1], categories, fontsize=18)
 
         # 使用亮色绘制各个模型数据
-        for values_name in value_list:
+        # colors = ["#96CAF8", "#FFB079", "#6CE89A", "#FF9998", "#D4BAFF", "#F8CECC", "#FFACE7", "#CFCFCF"]  # 你的颜色列表
+        # 使用深色绘制线条，浅色填充
+        colors_line = ["#6699CC", "#FF6600", "#33CC66", "#FF3333", "#9999FF", "#935247", "#FF66CC", "#999999"]  # 深色版本
+        colors_fill = ["#B0DDFF", "#FFD4A8", "#A6FACD", "#FFC1C1", "#ECD4FF", "#DFCBC8", "#FFC1E7", "#E0E0E0"]  # 浅色版本
+
+        patches = [] # 用于存储Patch对象的列表
+        for i, c in enumerate(colors_line):
+            patches.append(mpatches.Patch(color=c, label=llm2short[LLM[i]]))  # 创建一个Patch对象，并将其添加到列表中
+
+        # 使用深色绘制线条，浅色填充
+        for i, values_name in enumerate(value_list):
             values_series = list(data[values_name])
             values_series += values_series[:1]
-            ax.plot(angles, values_series, 'o-', linewidth=1,markersize=3)
-            ax.fill(angles, values_series, alpha=0.3, label=values_name)
-        
+            ax.plot(angles, values_series, 'o-', linewidth=1, markersize=3, color=colors_line[i])
+            ax.fill(angles, values_series, color=colors_fill[i], alpha=0.5)  # 增加透明度
+            
         # 添加标题和图例
-        # plt.title(title, fontsize=16)
-        plt.legend(loc='best', title="Models",fontsize='xx-small')
+        n = 2  # 起始索引，根据需要进行修改
+        m = 4  # 终止索引，根据需要进行修改
+        plt.legend(handles=patches[n:m], loc='upper center', bbox_to_anchor=(0.5, -0.05), ncol=m-n, handletextpad=0.2, columnspacing=5, fontsize=23,frameon=False)
 
         # 存储雷达图
         out_path = os.path.join(self.output_dir, f"{agent}_radar.pdf")
@@ -603,14 +646,13 @@ class Analyzer:
     
     def draw_bubble(self, data, x_label, y_label, hue, size, title):
         plt.rc('font',family='Times New Roman')
+        plt.figure(figsize=(8, 6))
         sns.set_theme(style="whitegrid")
 
         # Plot miles per gallon against horsepower with other semantics
-        # g = sns.scatterplot(data=data, x='time', y='reward', size='cost', hue='model', sizes=(100, 2000), palette="husl")
-
-        # Plot miles per gallon against horsepower with other semantics
         g = sns.scatterplot(data=data, x='time', y='reward', size='cost', hue='model', sizes=(100, 2000), palette="pastel", legend=False)
-        
+        # 创建图表
+
         # set x label
         g.set(xlabel="Execution time (s)")
         # set y label
@@ -705,85 +747,85 @@ class Analyzer:
             self.draw_bubble(data, "time", "reward", "model", "cost", f"{domain}_synth")
     
     def combination_analysis(self):
-        # # step1: draw performance histogram
-        # best_system = self.data[0]
-        # for data_dict in self.data:
-        #     final_data = []
-        #     system_name = f"{data_dict['agent_name']}_{data_dict['model_name']}"
-        #     for env in ENVS:
-        #         for difficulty, data_lst in data_dict[env].items():
-        #             reward_lst = [json_obj["reward"] for json_obj in data_lst]
-        #             avg_reward = sum(reward_lst) / len(reward_lst)
-        #             final_dict = {
-        #                 "env": env,
-        #                 "difficulty": difficulty,
-        #                 "reward": avg_reward,
-        #             }
-        #             final_data.append(final_dict)
-        #     #         # step2: get best of n system for combination score
-        #     #         for i, reward in enumerate(reward_lst):
-        #     #             last_reward = best_system[env][difficulty][i]["reward"]
-        #     #             if reward > last_reward:
-        #     #                 best_system[env][difficulty][i] = data_lst[i]
-        #     # df = pd.DataFrame(final_data)
-        #     # self.draw_histogram(df, y_label="F1", title=system_name)
-        # # step3: draw best system histogram
-        # final_data = []
-        # for env in ENVS:
-        #     for difficulty, data_lst in best_system[env].items():
-        #         reward_lst = [json_obj["reward"] for json_obj in data_lst]
-        #         avg_reward = sum(reward_lst) / len(reward_lst)
-        #         final_dict = {
-        #             "env": env,
-        #             "difficulty": difficulty,
-        #             "reward": avg_reward,
-        #         }
-        #         final_data.append(final_dict)
-        # df = pd.DataFrame(final_data)
-        # self.draw_histogram(df, y_label="F1", title="best_system")
-        # print("Finished draw performance histogram")
+        # step1: draw performance histogram
+        best_system = self.data[0]
+        for data_dict in self.data:
+            final_data = []
+            system_name = f"{data_dict['agent_name']}_{data_dict['model_name']}"
+            for env in ENVS:
+                for difficulty, data_lst in data_dict[env].items():
+                    reward_lst = [json_obj["reward"] for json_obj in data_lst]
+                    avg_reward = sum(reward_lst) / len(reward_lst)
+                    final_dict = {
+                        "env": env,
+                        "level": difficulty,
+                        "reward": avg_reward,
+                    }
+                    final_data.append(final_dict)
+                    # step2: get best of n system for combination score
+                    for i, reward in enumerate(reward_lst):
+                        last_reward = best_system[env][difficulty][i]["reward"]
+                        if reward > last_reward:
+                            best_system[env][difficulty][i] = data_lst[i]
+            df = pd.DataFrame(final_data)
+            self.draw_histogram(df, y_label="F1", title=system_name)
+        # step3: draw best system histogram
+        final_data = []
+        for env in ENVS:
+            for difficulty, data_lst in best_system[env].items():
+                reward_lst = [json_obj["reward"] for json_obj in data_lst]
+                avg_reward = sum(reward_lst) / len(reward_lst)
+                final_dict = {
+                    "env": env,
+                    "level": difficulty,
+                    "reward": avg_reward,
+                }
+                final_data.append(final_dict)
+        df = pd.DataFrame(final_data)
+        self.draw_histogram(df, y_label="F1", title="best_system")
+        print("Finished draw performance histogram")
 
         
 
         # step5: deside best performance of model group on each task
-        N = len(self.data)
-        final_data = []
-        for env in ENVS:
-            for difficulty in DIFF:
-                #sub-step1: traverse each combination num
-                for i in range(2, N+1):
-                    best_grp = ''
-                    best_score = 1e8
-                    grp = list(combinations(self.data, i))  # all possible combinations
-                    len_tsk = len(grp[0][0][env][difficulty])
-                    for g in grp:
-                        name_comb = '+'.join([llm2abc[gg["model_name"]] for gg in g])
-                        score_sum = 0
-                        for j in range(0, len_tsk):  # sub-step2 traverse all instance
-                            max_value = max(d[env][difficulty][j]['reward'] for d in g)
-                            score_sum += max_value
-                        score_sum = score_sum / len_tsk
-                        if score_sum <= best_score:  # compare with best score
-                            best_grp = name_comb
-                            best_score = score_sum
-                            print(f"get_best, task:{env},{difficulty}, name:{name_comb}, comb_num:{i}, score:{best_score:.4f}")
-                    final_dict = {
-                                "env": env,
-                                "difficulty": difficulty,
-                                "line_type": '_'.join((env,difficulty)),
-                                "comb_num": i,
-                                "best_group": best_grp,
-                                "best_score": best_score
-                            }
-                    final_data.append(final_dict)
+        # N = len(self.data)
+        # final_data = []
+        # for env in ENVS:
+        #     for difficulty in DIFF:
+        #         #sub-step1: traverse each combination num
+        #         for i in range(2, N+1):
+        #             best_grp = ''
+        #             best_score = 1e8
+        #             grp = list(combinations(self.data, i))  # all possible combinations
+        #             len_tsk = len(grp[0][0][env][difficulty])
+        #             for g in grp:
+        #                 name_comb = '+'.join([llm2abc[gg["model_name"]] for gg in g])
+        #                 score_sum = 0
+        #                 for j in range(0, len_tsk):  # sub-step2 traverse all instance
+        #                     max_value = max(d[env][difficulty][j]['reward'] for d in g)
+        #                     score_sum += max_value
+        #                 score_sum = score_sum / len_tsk
+        #                 if score_sum <= best_score:  # compare with best score
+        #                     best_grp = name_comb
+        #                     best_score = score_sum
+        #                     print(f"get_best, task:{env},{difficulty}, name:{name_comb}, comb_num:{i}, score:{best_score:.4f}")
+        #             final_dict = {
+        #                         "env": env,
+        #                         "difficulty": difficulty,
+        #                         "line_type": '_'.join((env,difficulty)),
+        #                         "comb_num": i,
+        #                         "best_group": best_grp,
+        #                         "best_score": best_score
+        #                     }
+        #             final_data.append(final_dict)
         
-        df = pd.DataFrame(final_data)
-        self.draw_lineplot(df, y_label="Best score", title="Best group for specific task-REV")
-        #sub-ste keep processed data
-        out_path = os.path.join(self.output_dir, f"Best_Group_origin_data_rev.jsonl")
-        with open(out_path, 'w') as jsonl_file:
-            jsonl_file.write(json.dumps(final_data, indent=2))
-        print("Finished draw grouped lineplot")
+        # df = pd.DataFrame(final_data)
+        # self.draw_lineplot(df, y_label="Best score", title="Best group for specific task-REV")
+        # #sub-ste keep processed data
+        # out_path = os.path.join(self.output_dir, f"Best_Group_origin_data_rev.jsonl")
+        # with open(out_path, 'w') as jsonl_file:
+        #     jsonl_file.write(json.dumps(final_data, indent=2))
+        # print("Finished draw grouped lineplot")
 
 
     def run(self):
