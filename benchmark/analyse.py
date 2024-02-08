@@ -293,7 +293,7 @@ class Analyzer:
         g = sns.catplot(
             data=df, kind="bar",
             x="env", y="reward", hue="level",
-            height=4, aspect=1.5,  # Set the height and aspect ratio
+            height=4, aspect=1,  # Set the height and aspect ratio
             errorbar='sd', palette=custom_palette, alpha=.6
         )
         g.despine(left=True)

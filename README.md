@@ -1,5 +1,6 @@
-# KoLA2
-KoLA2: Knowledge-oriented Language Agents Assessment
+# R-Eval
+R-Eval: A Unified Toolkit for Evaluating Domain Knowledge of Retrieval Augmented Large Language Models
+(In submission)
 
 # Requirements
 
@@ -58,4 +59,20 @@ Here are the usage of the files in wiki_run:
 
 # For AMiner Environment
 
-TODO
+The files are in aminer_run, we provide these apis for the AMiner environment:
+
+- **searchPerson**. The searchPerson function, which is based on the scholar entities' information in Aminer, receives the name, organization and interest of this intended scholar and returns the detailed information including person's id, citation number and publication number  via fuzzy match.
+
+
+- **searchPublication**. The searchPublication function, which is based on the publication entities' information in Aminer, receives the publication information and returns the related information including publication's id, title and publication year via fuzzy match.
+
+
+- **getCoauthors**. The getCoauthors function, which is based on the relation information between scholar entities, receives the person id then returns the input scholar's coauthors and their detailed information including id, name and relation via exact match.
+
+- **getPersonInterest**. The getPersonInterest function, which is based on the property information of scholar entities in Aminer, receives the scholar's id and returns a list of the person's interested research topics via exact match.
+
+- **getPublication**. The getPublication function, which is based on the property information of publication entities in Aminer, receives the publication's id and returns its detailed information including the publication's abstract, author list and the number of citation via exact match.
+
+- **getPersonBasicInfo**. The getPersonBasicInfo function, which is based on the scholar entities' property information in Aminer, receives the person's id of this intended scholar and returns the detailed information including person's name, gender, organization, position, short bio, education experience and email address via exact match. In fact, these information consists of the person's profile.
+
+- **getPersonPubs**. The getPersonPubs function, which is based on the relation information between publication entities and  scholar entities in Aminer, receives the person's id, and returns the detailed information including the publication's id, title, citation number and the authors' name list via exact match.
