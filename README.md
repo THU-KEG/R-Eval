@@ -20,7 +20,7 @@ By cloning our GitHub repository, you will be able to customize the evaluation b
 
 
 - Step 1: Install the package requirements
-- Step 2 (extensible): Prepare the domain database and RALLMs
+- **Step 2 (extensible): Prepare the domain database and RALLMs**
 - Step 3: Run evaluation and analysis
 
 
@@ -45,7 +45,7 @@ transformers
 torch
 ```
 
-## [Step 2] Prepare the domain database and RALLMs
+## ❗ [Step 2] Prepare the domain database and RALLMs
 
 ### [Custom] Add new domain databases
 
@@ -98,6 +98,66 @@ python3 benchmark/analysis.py --agent_name React_wiki_run_Agent --model vicuna-1
 The `--aspect` can be one of the following: performance, error, deploy. 
 
 These aspects correspond to the matching analysis (Sec. 5.1), error analysis (Sec. 5.2) and deployment analysis (Sec. 5.3) respectively in our paper.
+
+
+# 🧷 FAQ
+
+<details>
+<summary>
+What would be needed for a user with their own domain-specific dataset to apply this framework on their data?
+</summary>
+<br/>
+If you want to add new domain databases, you can refer to the existing implementations and create the new query APIs for your own domain databases in the `environment` folder. In fact, the environment is just the APIs for querying the domain database. You just need to describe the APIs' function in the prompts (in `fewshot.py` ), then the RAG workflows can use the APIs to retrieve the information from the domain database.
+</details>
+
+
+<details>
+<summary>
+What kind of retrieval components of dense retrieval or generative retrieval are built it?
+</summary>
+<br/>
+ In short, we directly use the LangChain's DocstoreExplorer which can search the Wikipedia articles by the title.  The mechanism of the retrieval components is based on the implementation of the DocstoreExplorer, which we believe is a dense retrieval.
+</details>
+
+<details>
+<summary>
+Can LLM based on knowledge graph retrieval also be incorporated under R-eval?
+</summary>
+<br/>
+Yes, as the knowledge graph retrieval can be defined as query APIs, you can add the APIs for the knowledge graph retrieval in the `environment` folder. Then, the RAG workflows can use the APIs to retrieve the information from the knowledge graph just like the Wikipedia and Aminer domain.
+</details>
+
+
+
+<details>
+<summary>
+R-eval includes the retrieval component inside? Then, how other collections can be added for RALLM?
+</summary>
+<br/>
+In R-Eval, the retrieval component refers to the APIs for querying the domain database, which is implemented for every domain database.  If you want to add new domain databases, you can refer to the existing implementations and create the new query APIs for your own domain databases in the `environment` folder. Besides, you should describe the APIs' function in the prompts (in `fewshot.py` ). Then, the RAG workflows can use the APIs to retrieve the information from the domain database.
+</details>
+
+
+
+<details>
+<summary>
+Is R-Eval just to collect some of the existing methods and benchmarks, and integrate them together to conduct a comprehensive evaluation?
+</summary>
+<br/>
+We agree that part of our work indeed involves collecting existing methods and benchmarks and integrating them for a comprehensive evaluation. However, our goal extends beyond this. Our primary innovation lies in designing a framework for evaluating RALLMs. More specifically, our objective is not to evaluate the specific capabilities of a particular model, but to address structural and principal issues present in the evaluation methods of existing works：
+
+(1) Insufficient exploration of **combinations between LLMs and RAG workflows**. Recent RAG evaluation frameworks  such as RAGAS and ARES, offer only a limited number of baselines and do not fully explore the myriad possible combinations of RAG workflows and LLMs. (2) Lack comprehensive **mining of the domain knowledge**. Furthermore, recent benchmarks like  ToolBench and API-Bank primarily focus on the general capabilities of RALLMs across various domains, with each domain typically containing only about 10 test cases on average, resulting in a shortage of testing data. A unified toolkit could facilitate fair comparisons and promote wider adoption of various RALLM systems for domain-specific applications.
+
+Additionally, our framework exhibits high adaptability and extensibility. It supports extensions for LLMs, workflows, domains, and metrics. To demonstrate this, we have revised our readme file and added some running cases. We hope that our framework can be used as a reference for future research in this field.
+</details>
+
+<details>
+<summary>
+There are multiple LLMs missing in two rightmost figures in Figure 4.
+</summary>
+<br/>
+As the workflows may require LLMs having the instruction following abilities to produce specific output format like code for PAL, not all LLMs can fit the workflows. Therefore, we tried to combine LLMs with the workflows and keep those combination that can achieve non-zero performance on our benchmark. In Figure 4, the two rightmost figures are for DFSDT and GPT FC workflows, which require the LLMs to have the abilities to call functions in GPT Function Calling's format. Therefore, some LLMs are missing in these two figures.
+</details>
 
 
 # [Details] Directory Structure 
