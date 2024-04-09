@@ -13,20 +13,8 @@ We summarize the traits of R-Eval as follows:
 - **[2024.4.8]** The **v0.1.2** version of R-Eval toolkit is released! 📝 In this version, we update our README and provide detailed instructions on how to use our toolkit on new domain or add new models.
 - **[2024.2.9]** The **v0.1.1** version of R-Eval toolkit is released! 🚀 In this version, we support 4 popular RAG workflows including DFSDT(DT), ReAct(RA), PAL and GPT Function Calling (FC). We report the evaluation results on 2 domain (Wikipedia and Aminer).
 
-# Getting Started
-R-Eval currently supports an evaluation of 21 RALLMs across 3 task levels and 2 representative domains while you can also customize your own evaluation settings. All the functions are now available in our toolkit:
 
-By cloning our GitHub repository, you will be able to customize the evaluation by preparing a query API for domain database and RALLM, i.e.,
-
-
-- Step 1: Install the package requirements
-- **Step 2 (extensible): Prepare the domain database and RALLMs**
-- Step 3: Run evaluation and analysis
-
-
-# Usage
-
-## [Step 1] Install Package Requirements
+# Package Requirements
 
 
 For client:
@@ -45,7 +33,20 @@ transformers
 torch
 ```
 
-## ❗ [Step 2] Prepare the domain database and RALLMs
+# Getting Started
+R-Eval currently supports an evaluation of 21 RALLMs across 3 task levels and 2 representative domains while you can also customize your own evaluation settings. All the functions are now available in our toolkit:
+
+By cloning our GitHub repository, you will be able to customize the evaluation by preparing a query API for domain database and RALLM, i.e.,
+
+- **Step 1 (extensible): Prepare the domain database and RALLMs**
+- Step 2: Run evaluation and analysis
+
+
+# Usage
+
+
+
+## ❗ [Step 1] Prepare the domain database and RALLMs
 
 ### [Custom] Add new domain databases
 
@@ -75,7 +76,7 @@ CUDA_VISIBLE_DEVICES=5,7 nohup uvicorn infer:app --host '0.0.0.0' --port 9627  >
 Note that the number of model_names should be equal to the number of GPUs. For example, if you have 2 models in the model_names, then you should have 2 GPUs.
 
 
-## [Step 3] Run evaluation and analysis
+## [Step 2] Run evaluation and analysis
 First, You can use `pred.py` to run the RALLM tests. The usage is as follows:
 
 ```
